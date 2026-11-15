@@ -23,7 +23,28 @@ Windows, inside the interactive desktop, once per edition:
 
 Without `-Gui` the G6 gate is recorded as BLOCKED, never PASS. Headless and SSH-only runs are not GUI evidence. Pester 5.5–5.x must be on `PSModulePath` (Pester 6 is not supported by these suites).
 
-## Executed runs — final2, after the independent final review (2026-11-15)
+## Executed runs — release 0.1.0 (2026-11-15)
+
+Published as a GitHub prerelease: <https://github.com/nativehtmlkit/nativehtmlkit-powershell/releases/tag/v0.1.0> (tag `v0.1.0`
+at source commit `5734a3a`). SDK source tree hash `1c36541cc1825caf4cfd3dbcbafc2d860a1187840ed8deeb968357f13a169639`
+(README.md and this file are excluded from the hash). Core 1.0.2 hosts from Core commit `8a09875` (clean tree):
+Linux `702adafcbfe3c969cb12d0de5d37546727ee13b147c8fc866c7afa18aa741d2a`, Windows `64d4502f27782bd17329ab6d560fc27b4e3d404b719ddd9bafc507d46d8638f4`.
+Package `NativeHTMLKit-0.1.0-linux-x64+win-x64.zip` SHA-256 `8e1fe37f589e4f89f3b4381b2cd2f7fdd1eefae8ede91cc84a936b4dadcf397b`
+(byte-reproducible, `development_package: false`). Evidence: Project `verification/2026-11-15-sdk/powershell/release/`.
+
+| Runtime / session | Gates | Pester (all suites) | G6 real desktop (one-command run) | G8 installed package |
+|---|---|---|---|---|
+| PS 7.7.0, Debian 13 workstation (headless) | 11 PASS, 1 BLOCKED (G6: not a desktop) | 154/154 | BLOCKED | PASS; Docker clean room (PS 7.4.2, no network/Rust/Python) 10/10 |
+| PS 7.7.0, linuxDEV KDE Plasma 6.6 Wayland | 13/13 PASS | 154/154 | PASS 29/29, clean teardown | PASS headless + GUI |
+| PS 7.7.0, winDEV interactive RDP desktop | 13/13 PASS | 154/154 | PASS 29/29, clean teardown | PASS headless + GUI |
+| Windows PowerShell 5.1.20348, same desktop | 13/13 PASS | 154/154 | PASS 29/29, clean teardown | PASS headless + GUI |
+
+Not run: IME, `idle` and `bitmap-kill` modes. Core protocol v1 is `1.0-rc`. Release status: 0.1.0 prerelease, published only
+via GitHub Releases (not the PowerShell Gallery).
+
+## Superseded run — final2, after the independent final review (2026-11-15)
+
+Superseded by the release run above (same SDK source tree; Core hosts then came from a dirty-tree Core build, so that package was a development package).
 
 Hosts (Core 1.0.2, source tree `4f63398c…`, built from a **dirty** Core tree): Linux `702adafcbfe3c969cb12d0de5d37546727ee13b147c8fc866c7afa18aa741d2a`, Windows `64d4502f27782bd17329ab6d560fc27b4e3d404b719ddd9bafc507d46d8638f4`.
 SDK source tree hash `1c36541cc1825caf4cfd3dbcbafc2d860a1187840ed8deeb968357f13a169639` (identical in all 51 results; README.md and this file are excluded from the hash).
