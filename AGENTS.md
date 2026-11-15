@@ -8,6 +8,6 @@
 6. Diagnostics records are bounded, redacted and opt-in for detail. Do not log tokens or values. Errors must preserve Core codes, operation and cause; failed callbacks must be discoverable.
 7. Run Pester and native acceptance on Linux Wayland, Windows Server 2022 PowerShell 7 and Windows PowerShell 5.1: `scripts/qualify.ps1` is the one command per platform/edition (`-Gui` only inside a real desktop session). Record evidence; blocked is not pass. Never mark a skipped real-host suite as passed: qualification runs use `-RequireHost`.
 8. Keep code, UI widgets, and future plugin architecture separate. Core defects are reported in Project bug registry with reproducer.
-9. No GitHub Actions, gallery publish or remote release unless user explicitly requests. Test/package locally.
+9. No GitHub Actions for building or testing. Gallery publication only through the manual publish-only workflow `.github/workflows/psgallery_publish.yml`, which pushes the module package from an existing GitHub Release and must never build or test; run it, or make any remote release, only on an explicit owner request. Test/package locally.
 10. From a project workspace read `../../AGENTS.md`; standalone clients use their own rules and published contract.
 11. Packages come only from `scripts/package-local.py` with hosts pinned by SHA-256 (fails closed); a packaged module verifies its bundled host against `HOST-MANIFEST.json` before use. Check packages with `scripts/smoke-installed.ps1`.
