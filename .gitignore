@@ -1,0 +1,8 @@
+verification/
+release/dist/
+dist/
+.venv/
+__pycache__/
+*.nupkg
+NativeHTMLKit/runtimes/win-x64/*
+NativeHTMLKit/runtimes/linux-x64/*
