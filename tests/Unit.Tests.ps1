@@ -6,10 +6,10 @@ BeforeAll {
 }
 
 Describe 'NativeHTMLKit manifest and exports' {
-    It 'has the 0.1.1 identity and matching manifest/module exports' {
+    It 'has the 0.1.2 identity and matching manifest/module exports' {
         $m = Test-ModuleManifest $script:ModuleManifest
-        $m.Version.ToString() | Should -Be '0.1.1'
-        (& (Get-Module NativeHTMLKit) { $script:NativeHTMLKitVersion }) | Should -Be '0.1.1'
+        $m.Version.ToString() | Should -Be '0.1.2'
+        (& (Get-Module NativeHTMLKit) { $script:NativeHTMLKitVersion }) | Should -Be '0.1.2'
         $m.CompatiblePSEditions | Should -Contain 'Desktop'
         $m.CompatiblePSEditions | Should -Contain 'Core'
         $declared = @($m.ExportedFunctions.Keys | Sort-Object)

@@ -1,11 +1,11 @@
 @{
     RootModule = 'NativeHTMLKit.psm1'
-    ModuleVersion = '0.1.1'
+    ModuleVersion = '0.1.2'
     GUID = 'e847e31c-4103-4872-a815-c1ec197a13fc'
     Author = 'NativeHTMLKit contributors'
     CompanyName = 'NativeHTMLKit'
     Copyright = '(c) 2026 NativeHTMLKit contributors. MIT license.'
-    Description = 'Native desktop apps from local HTML and CSS, controlled by ordinary PowerShell scripts. Run them with pwsh -File app.ps1 on Linux and Windows (PowerShell 7.2+) or with Windows PowerShell 5.1. A bundled Rust host renders the windows: no browser, JavaScript, Python runtime or web server.'
+    Description = 'Native desktop HTML/CSS applications with PowerShell on Linux and Windows. No browser, JavaScript or web server. Quick start: Install-Module NativeHTMLKit -Scope CurrentUser. Tutorials and examples: https://github.com/nativehtmlkit/nativehtmlkit . Full SDK API: https://github.com/nativehtmlkit/nativehtmlkit-powershell .'
     PowerShellVersion = '5.1'
     DotNetFrameworkVersion = '4.7.2'
     CompatiblePSEditions = @('Desktop','Core')
@@ -57,7 +57,7 @@
             Tags = @('UI','GUI','HTML','CSS','Native','Desktop','Linux','Windows','Wayland','PowerShell','Rust','PSEdition_Desktop','PSEdition_Core')
             LicenseUri = 'https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/LICENSE'
             ProjectUri = 'https://github.com/nativehtmlkit/nativehtmlkit-powershell'
-            ReleaseNotes = '0.1.1: full release; bundles NativeHTMLKit Core 1.0.3 and requires its behaviour. Core wire protocol v1 is now the public-stable wire contract (1.0). Live bitmaps on Linux work with the host''s shared lock on transport files (NHK-CROSS-0008). Diagnostics level off no longer needs the 0.1.0 interim mapping (the host now relays script output at every level); the diagnostic report adds the host dropped_notifications counter; package manifests record and cross-check the host source identity. Installable from the PowerShell Gallery (Install-Module NativeHTMLKit / Install-PSResource NativeHTMLKit) or the GitHub release ZIP. 0.1.0: first standalone release.'
+            ReleaseNotes = '0.1.2: documentation and marketplace onboarding refresh. Rust Core 1.0.3 host and public wire v1; no new SDK feature claims. See documentation and verified release artifacts for qualifications.'
         }
     }
 }

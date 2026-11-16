@@ -153,7 +153,7 @@ class PackageLocal(unittest.TestCase):
         (win / "LICENSE").write_text("MIT")
         (win / "release-manifest.json").write_text(json.dumps({"version": "1.0.2", "host_sha256": wsha, "protocol_version": 1, "source_dirty": False}))
         r = self.stage(hosts={"linux-x64": str(self.host), "win-x64": str(exe)}, shas={"linux-x64": self.sha, "win-x64": wsha})
-        self.assertTrue(r["artifact"].endswith("NativeHTMLKit-0.1.1-linux-x64+win-x64.zip"))
+        self.assertTrue(r["artifact"].endswith("NativeHTMLKit-0.1.2-linux-x64+win-x64.zip"))
         with self.assertRaisesRegex(SystemExit, "new or empty"):
             self.stage()
 

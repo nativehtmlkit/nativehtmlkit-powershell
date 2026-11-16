@@ -53,7 +53,7 @@ For declarative layouts and reactive state use the separate [NativeHTMLKit.UI](h
 | [Verification](docs/BUILD.md) | Local test and package pipeline |
 | [Skills](NativeHTMLKit/skills/nativehtmlkit-powershell/SKILL.md) | AI agent use |
 
-**Published version:** 0.1.1. This README update alone does not revise the existing PowerShell Gallery package description.
+**Module version:** 0.1.2 (bundles NativeHTMLKit Core 1.0.3, public wire protocol v1). 0.1.2 refreshes the Gallery description and documentation; the cmdlet API is unchanged from 0.1.1.
 
 ## Project navigation
 

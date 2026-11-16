@@ -12,7 +12,7 @@
 # notifications until the callback returns.
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
-$script:NativeHTMLKitVersion = '0.1.1'
+$script:NativeHTMLKitVersion = '0.1.2'
 $script:NativeHTMLKitHelperLoaded = $false
 $script:NativeHTMLKitIsWindows = [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT
 $script:MaximumDeferred = 128
