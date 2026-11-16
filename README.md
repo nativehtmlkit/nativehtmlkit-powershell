@@ -14,7 +14,7 @@ Import-Module NativeHTMLKit
 
 PowerShell 7.2+ on Linux KDE Wayland and Windows; Windows PowerShell 5.1 on Windows. Supported published packages bundle the Rust Core host. Verify the platform/runtime before using these scripts in automation.
 
-## First native window
+## Quick start
 
 ```powershell
 Import-Module NativeHTMLKit
