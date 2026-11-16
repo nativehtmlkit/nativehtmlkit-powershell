@@ -1,7 +1,7 @@
 # How to start a new app project
 
 Reference: [New-NativeHTMLKitProject](../reference/tooling.md#new-nativehtmlkitproject).
-A complete multi-file app: [examples/bulk-rename](../../examples/bulk-rename/).
+A complete multi-file app: [examples/bulk-rename](https://github.com/nativehtmlkit/nativehtmlkit-powershell/tree/main/examples/bulk-rename).
 
 ## Generate a project
 
@@ -29,7 +29,7 @@ The generated app runs unchanged; `tests/Examples.Tests.ps1` starts one in headl
 - Keep logic in functions in `app.ps1` (or dot-source helper `.ps1` files from `$PSScriptRoot`
   **below** `Start-NativeHTMLKitScript`). Make the logic that does not touch the UI pure, so it can
   be tested with Pester without a host, like `Get-RenamePlan` in
-  [bulk-rename/app.ps1](../../examples/bulk-rename/app.ps1).
+  [bulk-rename/app.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/bulk-rename/app.ps1).
 - Add a `-SelfTest` switch that drives the app through the SDK and quits, and run it in CI with
   `NATIVEHTMLKIT_TEST_MODE=1` (see the examples).
 

@@ -1,7 +1,7 @@
 # Reference: windows
 
 Creating, changing, listing and closing native windows, and the close policy. How-to:
-[Multiple windows](../guides/multiple-windows.md).
+[Multiple windows](../guides/windows.md).
 
 A `NativeHTMLKit.Window` has read-only properties `Id` (host window id such as `w1`), `Closed`,
 `Application` and `Document` (the current `NativeHTMLKit.Document` or `$null`). After the window

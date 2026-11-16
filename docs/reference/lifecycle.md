@@ -2,7 +2,7 @@
 
 Module `NativeHTMLKit` 0.1.2 (Core 1.0.3, wire protocol v1). Starting the host, connecting,
 signalling readiness, pumping events, quitting and closing. Task-oriented explanation:
-[Script lifecycle guide](../guides/script-lifecycle.md).
+[Script lifecycle guide](../guides/lifecycle.md).
 
 All commands in this module are advanced functions: parameters bind by name or by position in
 the order shown in the syntax blocks, and common parameters (`-Verbose`, `-ErrorAction`, ...) are

@@ -1,7 +1,7 @@
 # How to use several windows
 
 Reference: [windows](../reference/windows.md). Example:
-[08-multi-window.ps1](../../examples/08-multi-window.ps1) (a notes app with one window per note).
+[08-multi-window.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/08-multi-window.ps1) (a notes app with one window per note).
 
 ## Each window has its own document
 

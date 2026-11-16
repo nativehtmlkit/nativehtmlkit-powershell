@@ -8,7 +8,7 @@ You will learn the whole app lifecycle, loading HTML and CSS from files, live up
 events, safe rendering of file names, a native folder picker with a fallback, an HTML confirmation
 dialog, error handling per file and an automated self-test.
 
-The finished app is [examples/bulk-rename](../../examples/bulk-rename/): `app.ps1`, `index.html`
+The finished app is [examples/bulk-rename](https://github.com/nativehtmlkit/nativehtmlkit-powershell/tree/main/examples/bulk-rename): `app.ps1`, `index.html`
 and `style.css`. Every `app.ps1` excerpt below is copied from that file, which the repository's
 test suite runs on Linux (PowerShell 7) and Windows (PowerShell 7 and Windows PowerShell 5.1).
 
@@ -23,13 +23,13 @@ pwsh -File ./BulkRename/app.ps1        # Windows PowerShell 5.1: powershell.exe 
 ```
 
 A window with a greeting form opens. Close it. You now have `app.ps1`, `index.html`, `style.css`
-and `app.toml` in `BulkRename`. Read [script lifecycle](../guides/script-lifecycle.md) if you want
+and `app.toml` in `BulkRename`. Read [script lifecycle](../guides/lifecycle.md) if you want
 to know why the script runs twice.
 
 ## Step 2: the page
 
 Replace `index.html` and `style.css` with the files from
-[examples/bulk-rename](../../examples/bulk-rename/). The page has four parts, each addressed by
+[examples/bulk-rename](https://github.com/nativehtmlkit/nativehtmlkit-powershell/tree/main/examples/bulk-rename). The page has four parts, each addressed by
 element ids that the script will use:
 
 - a header with the folder box (`folder`), **Browse...** (`browse`) and **Load** (`load`);
@@ -302,7 +302,7 @@ $null = Register-NativeHTMLKitDocumentEvent -Document $doc -Type click -Element 
 
 The decision is made in the button handlers rather than in the dialog's `close` event because a
 `<dialog>` keeps its previous return value when it is dismissed with Escape (see
-[HTML dialogs](../guides/html-dialogs-and-popovers.md#return-values-persist)).
+[HTML dialogs](../guides/dialogs-and-popovers.md#return-values-persist)).
 
 `Invoke-Rename` (added in step 5) renames each planned file on its own: one locked file does not
 stop the others, and the summary reports how many failed. Each success is recorded for undo.
@@ -316,7 +316,7 @@ the **Undo** button:
 $null = Register-NativeHTMLKitDocumentEvent -Document $doc -Type click -Element undo -Callback { Undo-Rename }
 ```
 
-Your app now matches [examples/bulk-rename/app.ps1](../../examples/bulk-rename/app.ps1) except for
+Your app now matches [examples/bulk-rename/app.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/bulk-rename/app.ps1) except for
 the self-test.
 
 ## Step 9: test it without a screen
@@ -341,5 +341,5 @@ once in a desktop session.
 - Ship it: [project scaffolding](../guides/project-scaffolding.md) explains `app.toml`, app
   identity and distribution.
 - Make it faster on big folders: move `Get-ChildItem` into a
-  [background task](../guides/background-tasks.md).
-- Browse the other [examples](../../examples/README.md) and the [cmdlet reference](../API.md).
+  [background task](../guides/background-work.md).
+- Browse the other [examples](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/README.md) and the [cmdlet reference](../API.md).

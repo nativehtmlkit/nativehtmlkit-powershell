@@ -1,8 +1,8 @@
 # How to build forms with validation
 
 Reference: [forms](../reference/forms.md). Examples:
-[03-form-validation.ps1](../../examples/03-form-validation.ps1),
-[09-settings-dialog.ps1](../../examples/09-settings-dialog.ps1).
+[03-form-validation.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/03-form-validation.ps1),
+[09-settings-dialog.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/09-settings-dialog.ps1).
 
 ## Let the native form validate first
 
@@ -61,7 +61,7 @@ UI for a PowerShell rule, set a custom validity message:
 ## Long-running submit
 
 Do not block the submit handler with slow work (a REST call, a directory query). Disable the
-button, start a [background task](background-tasks.md), and re-enable it in `-OnCompleted`:
+button, start a [background task](background-work.md), and re-enable it in `-OnCompleted`:
 
 ```powershell
 $null = Register-NativeHTMLKitDocumentEvent -Document $doc -Type submit -Element request -Callback {

@@ -1,10 +1,10 @@
 # How to handle events: callbacks, delegation, scope and closures
 
 Reference: [events](../reference/events.md). Examples:
-[02-counter.ps1](../../examples/02-counter.ps1) (delegation),
-[04-todo-list.ps1](../../examples/04-todo-list.ps1) (dynamic lists),
-[08-multi-window.ps1](../../examples/08-multi-window.ps1) (closures),
-[13-keyboard-shortcuts.ps1](../../examples/13-keyboard-shortcuts.ps1) (keys).
+[02-counter.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/02-counter.ps1) (delegation),
+[04-todo-list.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/04-todo-list.ps1) (dynamic lists),
+[08-multi-window.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/08-multi-window.ps1) (closures),
+[13-keyboard-shortcuts.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/13-keyboard-shortcuts.ps1) (keys).
 
 ## Register a handler
 
@@ -41,7 +41,7 @@ $null = Register-NativeHTMLKitDocumentEvent -Document $doc -Type click -Element 
 ```
 
 For lists you re-render, encode the row identity in the child ids (`todo-17-delete`) and parse it
-with a regular expression, as [04-todo-list.ps1](../../examples/04-todo-list.ps1) does. Handlers on
+with a regular expression, as [04-todo-list.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/04-todo-list.ps1) does. Handlers on
 elements that you replace with `Set-NativeHTMLKitDocumentHtml` keep working when they are registered
 on the container, because subscriptions are per document and match by id at dispatch time.
 
@@ -99,7 +99,7 @@ function Add-Counter([string]$Id) {
 
 Functions defined in your script remain callable from closures, and `$doc`/`$app` captured by the
 closure stay valid as long as the document and application are alive.
-[08-multi-window.ps1](../../examples/08-multi-window.ps1) uses this pattern for per-window state.
+[08-multi-window.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/08-multi-window.ps1) uses this pattern for per-window state.
 
 ## When callbacks run, and re-entrancy
 
@@ -112,7 +112,7 @@ answer close/quit decisions.
 Two consequences:
 
 - Keep callbacks short. Long work blocks every other event: move it to
-  [a background task](background-tasks.md).
+  [a background task](background-work.md).
 - A callback that closes the application (`Close-NativeHTMLKit`) while your top-level code is
   waiting in another command makes that command throw `NativeHTMLKit.DisconnectedException`
   (`... did not complete: the application connection was closed`). Quit with
@@ -133,8 +133,9 @@ Set-NativeHTMLKitPreventDefault -Document $doc -Element search -EventType keydow
 
 Register `keydown` without `-Element` to see every key in the document, then build a chord string
 from the modifier flags and `$evt.key` (DOM key names: `s`, `Enter`, `Escape`, `F1`, `ArrowDown`).
-[13-keyboard-shortcuts.ps1](../../examples/13-keyboard-shortcuts.ps1) maps chords such as
-`ctrl+shift+u` to scriptblocks.
+[13-keyboard-shortcuts.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/13-keyboard-shortcuts.ps1) maps chords such as
+`ctrl+shift+u` to scriptblocks. The [keyboard and focus](keyboard-and-focus.md) guide covers shortcuts,
+default-action rules, focus and the caret in detail.
 
 ## Window and host notifications
 

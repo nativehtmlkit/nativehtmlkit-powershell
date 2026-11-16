@@ -1,7 +1,7 @@
 # Reference: diagnostics and support
 
 Local diagnostics only: nothing is sent anywhere. How-to:
-[Diagnostics and support bundles](../guides/diagnostics.md).
+[Diagnostics and support bundles](../guides/diagnostics-and-troubleshooting.md).
 
 ## Levels and records
 

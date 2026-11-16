@@ -17,4 +17,4 @@ pwsh -NoProfile -File scripts/test-local.ps1 -Path tests/Documentation.Tests.ps1
 pwsh -NoProfile -File scripts/test-local.ps1 -Path tests/Examples.Tests.ps1 -HostBinary <host> -RequireHost
 ```
 
-Run the example suite with both `pwsh` and `powershell.exe` on Windows. See [examples/README.md](../examples/README.md).
+Run the example suite with both `pwsh` and `powershell.exe` on Windows. See [examples/README.md](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/README.md).

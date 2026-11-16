@@ -1,9 +1,9 @@
 # How to use HTML dialogs and popovers
 
 Reference: [Show-NativeHTMLKitHtmlDialog, Show-NativeHTMLKitPopover](../reference/forms.md).
-Examples: [09-settings-dialog.ps1](../../examples/09-settings-dialog.ps1),
-[bulk-rename](../../examples/bulk-rename/app.ps1) (confirmation dialog),
-[13-keyboard-shortcuts.ps1](../../examples/13-keyboard-shortcuts.ps1) (help popover).
+Examples: [09-settings-dialog.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/09-settings-dialog.ps1),
+[bulk-rename](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/bulk-rename/app.ps1) (confirmation dialog),
+[13-keyboard-shortcuts.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/13-keyboard-shortcuts.ps1) (help popover).
 
 HTML `<dialog>` and `popover` elements are drawn inside your window by the native renderer. Use them
 for confirmations, settings and tips; use [native file dialogs](file-dialogs.md) for files.
@@ -45,7 +45,7 @@ button handlers, as above, or clear your own "confirmed" flag every time you ope
 
 Put a `<form>` inside the dialog and handle its `submit` event: native validation (`min`, `max`,
 `required`) runs first, then your handler saves and closes the dialog with a return value.
-[09-settings-dialog.ps1](../../examples/09-settings-dialog.ps1) prefills the form before opening
+[09-settings-dialog.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/09-settings-dialog.ps1) prefills the form before opening
 the dialog, saves to JSON and applies the colour scheme.
 
 ## Inspect the state

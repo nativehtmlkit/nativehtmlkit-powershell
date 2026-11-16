@@ -1,7 +1,7 @@
 # How to draw live images: charts and previews with RGBA bitmaps
 
 Reference: [live bitmaps](../reference/bitmaps.md). Example:
-[12-live-chart.ps1](../../examples/12-live-chart.ps1) (a live memory chart).
+[12-live-chart.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/12-live-chart.ps1) (a live memory chart).
 
 A live bitmap is a pixel buffer you fill in PowerShell and the document shows through
 `<img src="nativehtmlkit-bitmap://ID">`. Frames go through shared memory created by the host, so a

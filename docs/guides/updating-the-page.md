@@ -1,8 +1,10 @@
 # How to update the document: text, HTML, classes, batches and commands
 
 Reference: [documents](../reference/documents.md), [nodes](../reference/nodes.md). Examples:
-[02-counter.ps1](../../examples/02-counter.ps1), [04-todo-list.ps1](../../examples/04-todo-list.ps1),
-[05-process-viewer.ps1](../../examples/05-process-viewer.ps1), [06-log-tail.ps1](../../examples/06-log-tail.ps1).
+[02-counter.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/02-counter.ps1), [04-todo-list.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/04-todo-list.ps1),
+[05-process-viewer.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/05-process-viewer.ps1), [06-log-tail.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/06-log-tail.ps1),
+[15-data-table.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/15-data-table.ps1) (one batch per render),
+[16-dom-explorer.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/16-dom-explorer.ps1) (nodes without ids).
 
 The document lives in the native host; PowerShell changes it with commands addressed by element
 id. Each command is one request to the host, so prefer a few large updates over many small ones.
@@ -57,7 +59,7 @@ you append at the end, `from = 'end'` removes the last ones when you insert at t
 ## Long or growing views
 
 - Append with `-Position beforeend` and cap the length with `trim_children`, as
-  [06-log-tail.ps1](../../examples/06-log-tail.ps1) does for a log of 500 lines.
+  [06-log-tail.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/06-log-tail.ps1) does for a log of 500 lines.
 - Keep a scroll container at its end while lines arrive:
   `Invoke-NativeHTMLKitDocumentCommand -Document $doc -Operation set_scroll_follow -Parameters @{ element = 'log'; follow = $true }`.
 - Re-render big tables in one `Set-NativeHTMLKitDocumentHtml` call rather than one command per row,
@@ -74,6 +76,28 @@ $null = Set-NativeHTMLKitStylesheet -Document $doc -Sheet $sheet -Css ":root { -
 ```
 
 `$accent` must be a value you validated (for example `^#[0-9a-fA-F]{6}$`): CSS text is code.
+
+## Elements without ids: nodes
+
+Generated markup often has no ids. Node references reach those elements:
+
+```powershell
+$sample = Get-NativeHTMLKitNode -Document $doc -Element sample          # id -> node
+$children = (Get-NativeHTMLKitNodeChildren -Node $sample -Limit 256).children
+foreach ($child in $children) {
+    $node = Get-NativeHTMLKitNode -Document $doc -Reference $child.node   # wrap a reference string
+    $info = Get-NativeHTMLKitNodeInfo -Node $node                         # type, name, attributes, text, previous, next
+    if ($info.type -eq 'element') { Invoke-NativeHTMLKitNodeOperation -Node $node -Operation add_class -Parameters @{ name = 'seen' } }
+}
+$items = (Get-NativeHTMLKitNodes -Document $doc -Selector '#sample li').nodes   # CSS query: node + id (or $null)
+```
+
+Host replies are objects: an element's `attributes` are properties
+(`$info.attributes.PSObject.Properties`), and a text node reports its `text`, including the
+whitespace between tags. A reference belongs to one document generation; after the element is
+removed or replaced (for example by `Set-NativeHTMLKitDocumentHtml` on its parent), using it throws.
+[16-dom-explorer.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/16-dom-explorer.ps1) walks, moves (`move_element` with
+`target_node`), edits and deletes nodes this way.
 
 ## Read state back
 

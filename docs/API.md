@@ -8,8 +8,10 @@ to its full description (syntax, parameters with types and defaults, output, err
 88 functions are exported, each with one short `-NHK` alias ([alias table](reference/aliases.md)).
 Run `Get-Command -Module NativeHTMLKit` and `Get-Help <command>` for the installed copy.
 
-New here? Start with the [tutorial](tutorials/bulk-rename.md) or the
-[examples](../examples/README.md). Concepts: [architecture](ARCHITECTURE.md).
+New here? Start with [getting started](getting-started.md), the tutorials
+([todo app](tutorials/todo-app.md), [process dashboard](tutorials/process-dashboard.md),
+[bulk rename](tutorials/bulk-rename.md)) or the [examples](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/README.md).
+Concepts: [architecture](ARCHITECTURE.md).
 
 ## Conventions
 
@@ -153,17 +155,21 @@ with completion callbacks on the UI runspace.
 
 ## Guides
 
-[Script lifecycle](guides/script-lifecycle.md) ·
+[All guides](guides/README.md):
+[Lifecycle](guides/lifecycle.md) ·
 [Events and callbacks](guides/events-and-callbacks.md) ·
-[DOM updates](guides/dom-updates.md) ·
-[Forms](guides/forms.md) ·
-[Multiple windows](guides/multiple-windows.md) ·
+[Updating the page](guides/updating-the-page.md) ·
+[Forms and validation](guides/forms-and-validation.md) ·
+[Windows](guides/windows.md) ·
 [File dialogs](guides/file-dialogs.md) ·
-[HTML dialogs and popovers](guides/html-dialogs-and-popovers.md) ·
-[Clipboard](guides/clipboard.md) ·
+[Dialogs and popovers](guides/dialogs-and-popovers.md) ·
+[Clipboard and desktop](guides/clipboard-and-desktop.md) ·
+[Keyboard and focus](guides/keyboard-and-focus.md) ·
+[Styling and layout](guides/styling-and-layout.md) ·
 [Live bitmaps](guides/live-bitmaps.md) ·
-[Background tasks](guides/background-tasks.md) ·
-[Diagnostics](guides/diagnostics.md) ·
+[Background work](guides/background-work.md) ·
+[Diagnostics and troubleshooting](guides/diagnostics-and-troubleshooting.md) ·
+[Packaging and distribution](guides/packaging-and-distribution.md) ·
 [Project scaffolding](guides/project-scaffolding.md) ·
-[Windows PowerShell 5.1 and PowerShell 7](guides/windows-powershell-51.md) ·
-[Security](guides/security.md)
+[Security](guides/security.md) ·
+[Windows PowerShell 5.1 and PowerShell 7](guides/windows-powershell-51.md)

@@ -2,7 +2,8 @@
 
 Every NativeHTMLKit PowerShell app follows the same lifecycle. This guide explains each step and
 the mistakes that break it. Reference: [lifecycle](../reference/lifecycle.md).
-Example: [01-hello.ps1](../../examples/01-hello.ps1).
+Examples: [01-hello.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/01-hello.ps1) (the skeleton),
+[17-focus-timer.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/17-focus-timer.ps1) (quit confirmation, saving after shutdown).
 
 ## The skeleton
 
@@ -61,7 +62,7 @@ window cancels startup.
 All callbacks run inside `Wait-NativeHTMLKit` (and inside any command that waits for the host).
 `-UntilShutdown` returns when the host shuts the app down, after the user closed the last window
 or a quit was accepted. For periodic work, prefer a background task timer
-([06-log-tail.ps1](../../examples/06-log-tail.ps1), [12-live-chart.ps1](../../examples/12-live-chart.ps1))
+([06-log-tail.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/06-log-tail.ps1), [12-live-chart.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/12-live-chart.ps1))
 over a hand-written loop; if you need a loop, use the pump form:
 
 ```powershell
@@ -96,6 +97,46 @@ and exits with code 1 (observed with Core 1.0.3).
 background tasks. It accepts `$null` and is idempotent, so a `finally` block is always safe. If an
 exception escapes your script, PowerShell reports it, the backend exits, and the host exits with
 code 1 and `application failed` on stderr: the error is visible in the launcher's console.
+
+## Ask before quitting, save after shutdown
+
+A quit policy can veto a quit and ask the user instead. The host calls it for every quit request,
+including the one that follows closing the last window. Show an HTML `<dialog>` and return `$false`;
+the dialog's button sets a flag and asks again:
+
+```powershell
+Set-NativeHTMLKitBeforeQuit -Application $app -Callback {
+    if ($timer.Running -and -not $timer.AllowQuit) {
+        Show-NativeHTMLKitHtmlDialog -Document $doc -Element confirm-quit
+        $false
+        return
+    }
+    $true
+}
+$null = Register-NativeHTMLKitDocumentEvent -Document $doc -Type click -Element quit-anyway -Callback {
+    $timer.AllowQuit = $true
+    Show-NativeHTMLKitHtmlDialog -Document $doc -Element confirm-quit -Close -ReturnValue quit
+    $null = Request-NativeHTMLKitQuit -Application $app      # the policy runs again and now allows it
+}
+```
+
+The policy only runs after `Set-NativeHTMLKitReady`; a quit requested earlier is not offered to it.
+
+Code after `Wait-NativeHTMLKit -UntilShutdown` runs once the host has shut down. It is the place to
+save state, with plain PowerShell only: the windows are gone and commands that talk to the host fail.
+
+```powershell
+Wait-NativeHTMLKit -Application $app -UntilShutdown
+# The host has shut down: plain PowerShell only from here on.
+Set-Content -LiteralPath $statsPath -Value (ConvertTo-Json @{ completed = $timer.Completed } -Compress) -Encoding UTF8
+```
+
+Per-application folders for such files come from the host:
+`(Invoke-NativeHTMLKitRpc -Application $app -Method 'desktop.paths')` returns `config`, `data`,
+`cache`, `state` and `runtime` (XDG folders on Linux, AppData folders on Windows), named after the
+`-AppId`. The host does not create them; create the folder before writing.
+[17-focus-timer.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/17-focus-timer.ps1) and
+[04-todo-list.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/04-todo-list.ps1) use them.
 
 ## Running a manifest instead
 

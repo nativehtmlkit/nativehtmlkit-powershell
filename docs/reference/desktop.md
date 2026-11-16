@@ -1,7 +1,7 @@
 # Reference: desktop services
 
 Capabilities, desktop preferences, clipboard, opening URLs and files, and native file dialogs.
-How-to: [File dialogs](../guides/file-dialogs.md), [Clipboard](../guides/clipboard.md).
+How-to: [File dialogs](../guides/file-dialogs.md), [Clipboard](../guides/clipboard-and-desktop.md).
 
 Desktop services depend on the operating system and session. In the host's headless test mode
 (`NATIVEHTMLKIT_TEST_MODE=1`) clipboard, file dialogs, external open and attention requests are

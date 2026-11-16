@@ -1,7 +1,7 @@
 # Reference: background tasks
 
 Run slow PowerShell work (file scans, hashing, web requests, `Get-WinEvent` queries) without
-freezing the window. How-to: [Background tasks](../guides/background-tasks.md).
+freezing the window. How-to: [Background tasks](../guides/background-work.md).
 
 ## Rules
 

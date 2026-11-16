@@ -1,7 +1,7 @@
 # Reference: documents and DOM updates
 
 Loading HTML, reading and changing elements by id, stylesheets, computed style, environment,
-scrolling, focus and text selection. How-to: [DOM updates](../guides/dom-updates.md).
+scrolling, focus and text selection. How-to: [DOM updates](../guides/updating-the-page.md).
 
 A `NativeHTMLKit.Document` has read-only properties `Id` (such as `d1`), `Window` and `Retired`.
 A window has at most one document. Loading another document into the window (or

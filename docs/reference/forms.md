@@ -1,6 +1,6 @@
 # Reference: forms, select lists, HTML dialogs and popovers
 
-How-to guides: [Forms](../guides/forms.md), [HTML dialogs and popovers](../guides/html-dialogs-and-popovers.md).
+How-to guides: [Forms](../guides/forms-and-validation.md), [HTML dialogs and popovers](../guides/dialogs-and-popovers.md).
 
 Form commands take the form by id (`-Form`) or as a node (`-FormNode`), and an optional submit
 button by id (`-Submitter`) or node (`-SubmitterNode`). Exactly one form target is required.

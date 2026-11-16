@@ -1,8 +1,8 @@
 # How to open, save and choose folders with native dialogs
 
 Reference: [Show-NativeHTMLKitFileDialog](../reference/desktop.md#show-nativehtmlkitfiledialog).
-Examples: [07-file-preview.ps1](../../examples/07-file-preview.ps1),
-[bulk-rename](../../examples/bulk-rename/app.ps1) (folder picker).
+Examples: [07-file-preview.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/07-file-preview.ps1),
+[bulk-rename](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/bulk-rename/app.ps1) (folder picker).
 
 The dialogs are the desktop's own file dialogs, attached to one of your windows (modal for it).
 

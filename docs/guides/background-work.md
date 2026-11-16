@@ -1,9 +1,11 @@
 # How to run slow work in the background
 
 Reference: [background tasks](../reference/tasks.md). Examples:
-[11-background-checksums.ps1](../../examples/11-background-checksums.ps1) (progress and cancel),
-[06-log-tail.ps1](../../examples/06-log-tail.ps1) (polling),
-[12-live-chart.ps1](../../examples/12-live-chart.ps1) (timer).
+[11-background-checksums.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/11-background-checksums.ps1) (progress and cancel),
+[06-log-tail.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/06-log-tail.ps1) (polling),
+[12-live-chart.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/12-live-chart.ps1) (timer),
+[18-background-jobs.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/18-background-jobs.ps1) (several jobs, queue, cancel),
+[process-dashboard/app.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/process-dashboard/app.ps1) (periodic refresh; [tutorial](../tutorials/process-dashboard.md)).
 
 Callbacks run on the UI runspace: while one runs, the window cannot react to anything else. Move
 anything that takes more than a fraction of a second into `Start-NativeHTMLKitTask`.
@@ -38,7 +40,7 @@ What crosses the boundary:
 
 A task reports only when it finishes. For progress, split the work into batches and start the next
 batch from `-OnCompleted`, updating a `<progress>` element each time
-([11-background-checksums.ps1](../../examples/11-background-checksums.ps1) hashes 10 files per
+([11-background-checksums.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/11-background-checksums.ps1) hashes 10 files per
 batch). Batches also make cancellation responsive.
 
 ## Cancel and time out
@@ -77,7 +79,30 @@ function Start-Poll {
 
 Each task creates a runspace (tens of milliseconds, more in Windows PowerShell 5.1), so keep periods
 at a few hundred milliseconds or more, and do the I/O inside the task, as
-[06-log-tail.ps1](../../examples/06-log-tail.ps1) does.
+[06-log-tail.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/06-log-tail.ps1) does.
+
+## Several jobs at once
+
+Each job is a chain of short tasks, so it can report progress after every step. A function that
+starts a step creates its callbacks with `.GetNewClosure()`, so each callback keeps *its* job:
+
+```powershell
+function Start-JobStep($Job) {
+    $Job.Task = Start-NativeHTMLKitTask -Application $app -ScriptBlock $work -ArgumentList @($delay) -OnCompleted {
+        $Job.Step++
+        Set-NativeHTMLKitDocumentAttribute -Document $doc -Element "job-$($Job.Id)-fill" -Name style -Value ('width:{0}%' -f ($Job.Step * 5))
+        if ($Job.Step -lt 20) { Start-JobStep $Job } else { Complete-Job $Job 'done' }
+    }.GetNewClosure() -OnFailed {
+        param($failure)
+        if ($failure -is [OperationCanceledException]) { Complete-Job $Job 'cancelled' }
+    }.GetNewClosure()
+}
+```
+
+`Stop-NativeHTMLKitTask -Task $job.Task` cancels the current step, and `-OnFailed` marks the job
+cancelled. An application can have at most **8** unfinished tasks; a ninth `Start-NativeHTMLKitTask`
+throws. [18-background-jobs.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/18-background-jobs.ps1) therefore keeps further
+jobs in a queue and starts them when a running job finishes or is cancelled.
 
 ## Waiting for a task from script code
 

@@ -1,7 +1,7 @@
 # How to troubleshoot: diagnostics levels, counters and support bundles
 
 Reference: [diagnostics](../reference/diagnostics.md). Example:
-[14-diagnostics.ps1](../../examples/14-diagnostics.ps1) (an About/Support window).
+[14-diagnostics.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/14-diagnostics.ps1) (an About/Support window).
 
 ## First steps when "nothing happens"
 
@@ -17,7 +17,7 @@ Reference: [diagnostics](../reference/diagnostics.md). Example:
    only after native validation passed.
 4. **Check that something pumps.** Callbacks only run inside `Wait-NativeHTMLKit` or another
    waiting SDK command. A script blocked in `Start-Sleep` or a long loop on the UI runspace delays
-   every event: use a [background task](background-tasks.md).
+   every event: use a [background task](background-work.md).
 5. **Check variable scope** in callbacks created in functions or loops
    ([closures](events-and-callbacks.md#closures-and-scope)).
 
