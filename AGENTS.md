@@ -1,13 +1,16 @@
-# NativeHTMLKit PowerShell SDK — agent policy
+# nativehtmlkit-powershell — development-agent instructions
 
-1. Read `README.md`, `docs/QUALIFICATION.md`, and the published Core v1 protocol. The SDK must remain independently cloneable and buildable.
-2. Canonical module is `NativeHTMLKit`, canonical commands `Verb-NativeHTMLKitNoun`, exported aliases `Verb-NHKNoun`; the host transport retains v1 `UI4ME_*` names **internally**.
-3. No Python runtime, Rust compilation or Core source dependency for SDK consumers. Package exactly qualified Core binary artifacts with hashes and licenses.
-4. Keep all user scriptblocks on the owning PowerShell runspace. Never execute application code on a transport reader; background tasks are runspaces and return through the pump. Preserve host close/quit handling under nested RPC.
-5. Preserve working legacy semantics while upgrading diagnostics, error propagation and concurrency. Task completions run on the owning runspace, never inside another callback and never after `Close-NativeHTMLKit`; cancelled workers keep their slot until they really end and are never disposed while running. `tests/Tasks.Tests.ps1` pins this; run it on PS 5.1 and 7.
-6. Diagnostics records are bounded, redacted and opt-in for detail. Do not log tokens or values. Errors must preserve Core codes, operation and cause; failed callbacks must be discoverable.
-7. Run Pester and native acceptance on Linux Wayland, Windows Server 2022 PowerShell 7 and Windows PowerShell 5.1: `scripts/qualify.ps1` is the one command per platform/edition (`-Gui` only inside a real desktop session). Record evidence; blocked is not pass. Never mark a skipped real-host suite as passed: qualification runs use `-RequireHost`.
-8. Keep code, UI widgets, and future plugin architecture separate. Core defects are reported in Project bug registry with reproducer.
-9. No GitHub Actions for building or testing. Gallery publication only through the manual publish-only workflow `.github/workflows/psgallery_publish.yml`, which pushes the module package from an existing GitHub Release and must never build or test; run it, or make any remote release, only on an explicit owner request. Test/package locally.
-10. From a project workspace read `../../AGENTS.md`; standalone clients use their own rules and published contract.
-11. Packages come only from `scripts/package-local.py` with hosts pinned by SHA-256 (fails closed); a packaged module verifies its bundled host against `HOST-MANIFEST.json` before use. Check packages with `scripts/smoke-installed.ps1`.
+**Ownership:** PowerShell public SDK.
+
+This is an independent Git repository in the NativeHTMLKit ecosystem. Central issue tracking, approval and cross-repository coordination are in the private workspace `nativehtmlkit-project` under `work/bugs/` and `work/features/` (normally at `../../work/`). When cloning this repository alone, locate that private workspace using `NHK_PROJECT_ROOT`; do not create a duplicate issue register in this repository.
+
+## Mandatory behavior
+
+1. Read the root Project `AGENTS.md`, `governance/SCOPE.md`, `governance/ARCHITECTURE.md`, `governance/WORKFLOW.md`, and generated `STATUS.md` if the workspace is available. Read this repository's README, `docs/ARCHITECTURE.md` and `docs/BUILD.md` as relevant.
+2. Only implement an expressly approved `B-####` or `F-####` task. Scope repository changes to the assigned issue; unrelated defects must be recorded and deferred, unless blocking or security-critical.
+3. SDK owns NativeHTMLKit module, public cmdlets, transport, host package and PowerShell tests. Keep Windows PowerShell 5.1 and PowerShell 7 compatibility as documented. Do not rewrite Core to fix a consumer issue.
+4. Never silently modify another repository, publish packages, create release tags, bump versions, erase test evidence or change native host binaries. Those actions need separate task authorization and qualification.
+5. Verify against the actual public API and released binary versions. Report exact commands, pass/fail/skip, runtime/OS and outstanding issues. Keep issue records current and regenerate central `STATUS.md` after work.
+6. Public README/API/tutorials contain **only** verified user-facing information and never private workspace logs, credential details or release plans. Repo-local architecture is owned here, not duplicated in landing docs.
+
+For this repository's public user documentation, start at its `README.md` and `docs/`. For public onboarding across all entrypoints, see https://github.com/nativehtmlkit/nativehtmlkit .
