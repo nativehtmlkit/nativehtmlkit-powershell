@@ -25,9 +25,28 @@ Without `-Gui` the G6 gate is recorded as BLOCKED, never PASS. Headless and SSH-
 
 ## Release 0.1.1 (Core 1.0.3, protocol v1 stable)
 
-0.1.1 is qualified with the same gates plus G8 `gallery-install` (local-repository Publish-PSResource/Save-PSResource on
-PowerShell 7, PowerShellGet Install-Module on Windows PowerShell 5.1) and the Docker clean room. Its executed-run record is
-added here after publication; until then see the release notes of the v0.1.1 GitHub release.
+Published on the PowerShell Gallery <https://www.powershellgallery.com/packages/NativeHTMLKit/0.1.1> (pushed by the
+publish-only workflow from the release asset) and as a GitHub release:
+<https://github.com/nativehtmlkit/nativehtmlkit-powershell/releases/tag/v0.1.1>
+(tag `v0.1.1` at source commit `215f75a`). SDK source tree hash `a98ba47152089aea6a6a6059e6897be173fc1c2bc07b8ef24b6f813799487636`
+(README.md and this file are excluded from the hash). Core 1.0.3 hosts from Core commit `d73dec36` (clean tree):
+Linux `1cd4e9de701f3ef8d8b870b678765243f2365d69d7352c0543f171ff249c999f`, Windows `15967208d2e20d208d69b97bba6f397056e28c57add126909a8734361ae8f8c8`.
+Package `NativeHTMLKit-0.1.1-linux-x64+win-x64.zip` SHA-256 `e7fac0d0ef230b32eb0ea544fbbc17fcbe32e424a49682a08374f33219fb40ce`
+(byte-reproducible, `development_package: false`). Evidence: Project `verification/2026-11-16-full-release/powershell/release/` (55 results).
+
+| Runtime / session | Gates | Pester (all suites) | G6 real desktop (one-command run) | G8 installed package | G8 Gallery-style install |
+|---|---|---|---|---|---|
+| PS 7.7.0, Debian 13 workstation (headless) | 12 PASS, 1 BLOCKED (G6: not a desktop) | 158/158 | BLOCKED | PASS; Docker clean room (PS 7.4.2, no network/Rust/Python) 12/12 | PASS |
+| PS 7.7.0, linuxDEV KDE Plasma 6.6 Wayland | 14/14 PASS | 158/158 | PASS 29/29, clean teardown | PASS headless + GUI | PASS |
+| PS 7.7.0, winDEV interactive RDP desktop | 14/14 PASS | 158/158 | PASS 29/29, clean teardown | PASS headless + GUI | PASS |
+| Windows PowerShell 5.1.20348, same desktop | 14/14 PASS | 158/158 | PASS 29/29, clean teardown | PASS headless + GUI | PASS (Install-Module) |
+
+After publication the module was fetched from the real Gallery on Linux PowerShell 7 (`Save-PSResource NativeHTMLKit
+-Version 0.1.1`): both bundled host hashes match and the installed smoke passed 12/12. The real-Gallery install was not
+re-checked on Windows (PowerShell 7 or 5.1).
+
+Not run: IME, `idle` and `bitmap-kill` modes; mixed per-monitor DPI on Windows; real suspend/resume.
+Core wire protocol v1 is the public-stable contract (1.0) since Core 1.0.3.
 
 ## Executed runs — release 0.1.0 (2026-11-15)
 

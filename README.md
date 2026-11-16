@@ -2,7 +2,7 @@
 
 Independent PowerShell SDK for the [NativeHTMLKit Core](https://github.com/nativehtmlkit/nativehtmlkit-core) native HTML/CSS host: native desktop windows from local HTML and CSS, driven by ordinary PowerShell scripts. Targets: **PowerShell 7.2+ on Linux and Windows, and Windows PowerShell 5.1**. End users need no Python, Rust compiler, browser, JavaScript runtime or HTTP server; a packaged module carries a prebuilt Core host.
 
-**Status: 0.1.1, a full release that bundles NativeHTMLKit Core 1.0.3. It speaks Core wire protocol v1, which is the public-stable wire contract (1.0) since Core 1.0.3, and it requires Core 1.0.3 behaviour (first presentation after load or 750 ms, work-area clamping, the host relaying script output at every diagnostics level, the shared lock on Linux bitmap transport files). The previous version, 0.1.0, was a GitHub prerelease <https://github.com/nativehtmlkit/nativehtmlkit-powershell/releases/tag/v0.1.0>. What was qualified is recorded in [docs/QUALIFICATION.md](docs/QUALIFICATION.md).**
+**Status: 0.1.1, a full release that bundles NativeHTMLKit Core 1.0.3. It speaks Core wire protocol v1, which is the public-stable wire contract (1.0) since Core 1.0.3, and it requires Core 1.0.3 behaviour (first presentation after load or 750 ms, work-area clamping, the host relaying script output at every diagnostics level, the shared lock on Linux bitmap transport files). Released: 0.1.1 on the PowerShell Gallery and GitHub Releases <https://github.com/nativehtmlkit/nativehtmlkit-powershell/releases/tag/v0.1.1>; 0.1.0 was a GitHub prerelease. What was qualified is recorded in [docs/QUALIFICATION.md](docs/QUALIFICATION.md).**
 
 ## Install
 
