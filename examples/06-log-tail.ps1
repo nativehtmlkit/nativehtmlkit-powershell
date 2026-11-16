@@ -11,6 +11,9 @@
 param([string]$Path, [switch]$SelfTest)
 $ErrorActionPreference = 'Stop'
 Import-Module NativeHTMLKit
+# Validate arguments before starting the host, so a usage error is a plain console error
+# rather than a host "application failed" window.
+if (-not $Path -and -not $SelfTest) { throw 'Pass the log file to follow: -Path <file>' }
 
 $app = Start-NativeHTMLKitScript -Name 'Log tail'
 $selfTestLog = $null
