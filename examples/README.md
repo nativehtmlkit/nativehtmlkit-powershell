@@ -13,15 +13,15 @@ pwsh -File ./04-todo-list.ps1                       # Windows PowerShell: powers
 |---|---|---|---|
 | [01-hello.ps1](01-hello.ps1) | `hello` | Greeting form | The lifecycle: start, window, document, event, ready, wait, close; safe text output. |
 | [02-counter.ps1](02-counter.ps1) | `counter` | Counter with step, limits, history | Script state, one delegated click handler for a button row, `<select>`, atomic `Invoke-NativeHTMLKitBatch`, `trim_children`. |
-| [03-form-validation.ps1](03-form-validation.ps1) | `signup-form` | Account request form | `submit` events, native constraints, PowerShell rules, per-field errors with `aria-invalid`, focus, reset. |
+| [03-form-validation.ps1](03-form-validation.ps1) | `signup-form` | Sign-up form | Native constraint validation, one `invalid` event per failing control in an error summary, `set_custom_validity` for the password match, `Get-NativeHTMLKitFormData` with repeated names, encoded result, reset after success. |
 | [04-todo-list.ps1](04-todo-list.ps1) | `todo` | Todo list saved to JSON | Form `submit`, delegated list events, `HtmlEncode`, edit in place, Escape, filters, `desktop.paths`, atomic saves. The [tutorial](../docs/tutorials/todo-app.md)'s final app. |
 | [05-process-viewer.ps1](05-process-viewer.ps1) | `process-viewer` | Sortable process table | Tables from `Get-Process`, live filter from the `input` event's `value`, sortable headers with `aria-sort`. |
 | [06-log-tail.ps1](06-log-tail.ps1) | `log-viewer` | Log follower (`-Path file`) | Polling with background tasks, appending lines, bounding the view, `set_scroll_follow`, highlighting. |
-| [07-file-preview.ps1](07-file-preview.ps1) | `file-viewer` | Open-and-preview tool | Native Open dialog with filters, capability check, `RpcException` handling, file content as text, reveal in file manager. |
-| [08-multi-window.ps1](08-multi-window.ps1) | `multi-window` | Notes, one window per note | Several windows, per-window state, `.GetNewClosure()`, close policy vetoing unsaved notes, `window.event`, quit policy. |
+| [07-file-preview.ps1](07-file-preview.ps1) | `file-viewer` | File viewer and editor (`-Path file`) | Native Open, Save As and Choose Folder dialogs with filters, the dialog result, the -32001 fallback, UTF-8 and size checks, file content as a textarea value, folder list, window title. |
+| [08-multi-window.ps1](08-multi-window.ps1) | `multi-window` | Window manager with note windows | Several windows, the window list, `Get-`/`Set-NativeHTMLKitWindow` (rename, resize, maximize), `window.event` log, per-window state with `.GetNewClosure()`, close policy vetoing unsaved notes, closing the main window quits. |
 | [09-settings-dialog.ps1](09-settings-dialog.ps1) | `settings-dialog` | Settings dialog | HTML `<dialog>`, popover help, form inside a dialog, colour scheme override, replaceable stylesheet, JSON settings. |
-| [10-clipboard-tool.ps1](10-clipboard-tool.ps1) | `clipboard-tool` | Text transformer | Clipboard read/write with fallback, transform functions, error messages for bad input. |
-| [11-background-checksums.ps1](11-background-checksums.ps1) | `checksums` | SHA-256 of a folder | Background tasks in batches with a progress bar, cancel, timeout, `Receive-NativeHTMLKitTask`. |
+| [10-clipboard-tool.ps1](10-clipboard-tool.ps1) | `clipboard-tool` | Clipboard tool | Text transforms from one delegated toolbar handler, clipboard Paste/Copy, `link_activated` with `Open-NativeHTMLKitExternal` (https only), desktop preferences with live updates, -32001 fallbacks, UTF-16 cursor offset. |
+| [11-background-checksums.ps1](11-background-checksums.ps1) | `checksums` | SHA-256 of a folder | Background tasks in time-boxed batches with a progress bar, cancel with `Stop-NativeHTMLKitTask`, folder dialog, quit policy while busy. |
 | [12-live-chart.ps1](12-live-chart.ps1) | `live-chart` | Live memory chart | Live RGBA bitmaps, fast pixel drawing in PowerShell, a timer from tasks. |
 | [13-keyboard-shortcuts.ps1](13-keyboard-shortcuts.ps1) | `keyboard-shortcuts` | Snippet editor | `keydown` chords, a shortcut table, `Set-NativeHTMLKitPreventDefault` for Tab, inserting at the caret, selection. |
 | [14-diagnostics.ps1](14-diagnostics.ps1) | `diagnostics` | About / Support window | Capabilities, preferences, diagnostic counters, support bundles. |
@@ -92,15 +92,13 @@ More complete gallery-style demos across the NativeHTMLKit project are on the
 
 ## Screenshots
 
-Real captures on KDE Plasma 6.6 Wayland (100% scaling) with Core 1.0.3, PowerShell SDK 0.1.2 on PowerShell 7.7, taken by running each example unchanged. Windows looks the same apart from the window frame.
+Real captures on KDE Plasma 6.6 Wayland (100% scaling) with Core 1.0.3, PowerShell SDK 0.1.2 on PowerShell 7.7, taken by running each example unchanged. Examples without a picture here changed after the last capture. Windows looks the same apart from the window frame.
 
 | | |
 |---|---|
 | [01-hello](01-hello.ps1)<br>![01-hello](../docs/images/examples/ps-sdk-01-hello.png) | [02-counter](02-counter.ps1)<br>![02-counter](../docs/images/examples/ps-sdk-02-counter.png) |
-| [03-form-validation](03-form-validation.ps1)<br>![03-form-validation](../docs/images/examples/ps-sdk-03-form-validation.png) | [04-todo-list](04-todo-list.ps1)<br>![04-todo-list](../docs/images/examples/ps-sdk-04-todo-list.png) |
-| [05-process-viewer](05-process-viewer.ps1)<br>![05-process-viewer](../docs/images/examples/ps-sdk-05-process-viewer.png) | [06-log-tail](06-log-tail.ps1)<br>![06-log-tail](../docs/images/examples/ps-sdk-06-log-tail.png) |
-| [07-file-preview](07-file-preview.ps1)<br>![07-file-preview](../docs/images/examples/ps-sdk-07-file-preview.png) | [08-multi-window](08-multi-window.ps1)<br>![08-multi-window](../docs/images/examples/ps-sdk-08-multi-window.png) |
-| [09-settings-dialog](09-settings-dialog.ps1)<br>![09-settings-dialog](../docs/images/examples/ps-sdk-09-settings-dialog.png) | [10-clipboard-tool](10-clipboard-tool.ps1)<br>![10-clipboard-tool](../docs/images/examples/ps-sdk-10-clipboard-tool.png) |
-| [11-background-checksums](11-background-checksums.ps1)<br>![11-background-checksums](../docs/images/examples/ps-sdk-11-background-checksums.png) | [12-live-chart](12-live-chart.ps1)<br>![12-live-chart](../docs/images/examples/ps-sdk-12-live-chart.png) |
-| [13-keyboard-shortcuts](13-keyboard-shortcuts.ps1)<br>![13-keyboard-shortcuts](../docs/images/examples/ps-sdk-13-keyboard-shortcuts.png) | [14-diagnostics](14-diagnostics.ps1)<br>![14-diagnostics](../docs/images/examples/ps-sdk-14-diagnostics.png) |
-| [bulk-rename](bulk-rename/app.ps1)<br>![bulk-rename](../docs/images/examples/ps-sdk-bulk-rename.png) | [process-dashboard](process-dashboard/app.ps1)<br>![process-dashboard](../docs/images/examples/ps-sdk-process-dashboard.png) |
+| [04-todo-list](04-todo-list.ps1)<br>![04-todo-list](../docs/images/examples/ps-sdk-04-todo-list.png) | [05-process-viewer](05-process-viewer.ps1)<br>![05-process-viewer](../docs/images/examples/ps-sdk-05-process-viewer.png) |
+| [06-log-tail](06-log-tail.ps1)<br>![06-log-tail](../docs/images/examples/ps-sdk-06-log-tail.png) | [09-settings-dialog](09-settings-dialog.ps1)<br>![09-settings-dialog](../docs/images/examples/ps-sdk-09-settings-dialog.png) |
+| [12-live-chart](12-live-chart.ps1)<br>![12-live-chart](../docs/images/examples/ps-sdk-12-live-chart.png) | [13-keyboard-shortcuts](13-keyboard-shortcuts.ps1)<br>![13-keyboard-shortcuts](../docs/images/examples/ps-sdk-13-keyboard-shortcuts.png) |
+| [14-diagnostics](14-diagnostics.ps1)<br>![14-diagnostics](../docs/images/examples/ps-sdk-14-diagnostics.png) | [bulk-rename](bulk-rename/app.ps1)<br>![bulk-rename](../docs/images/examples/ps-sdk-bulk-rename.png) |
+| [process-dashboard](process-dashboard/app.ps1)<br>![process-dashboard](../docs/images/examples/ps-sdk-process-dashboard.png) |  |

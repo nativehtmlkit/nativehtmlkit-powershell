@@ -1,7 +1,7 @@
 # Examples by task
 
 The runnable example apps live in [examples/](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/README.md): twenty small, complete
-programs from a greeting form to a multi-window notes app, a live bitmap chart and the tutorials'
+programs from a greeting form to a multi-window window manager, a live bitmap chart and the tutorials'
 final apps. Each one states what it teaches in its header, accepts `-SelfTest`, and is run against
 the real host on Linux (PowerShell 7) and Windows (PowerShell 7 and Windows PowerShell 5.1) by
 `tests/Examples.Tests.ps1`. [catalog.toml](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/catalog.toml) lists them with the ids

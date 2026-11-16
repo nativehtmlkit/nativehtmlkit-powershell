@@ -10,31 +10,44 @@ reading desktop preferences.
 
 The SDK reads and writes **plain text** on the system clipboard through the host. Text controls in
 your documents handle the usual editing shortcuts themselves; you need these cmdlets for actions
-such as a "Copy result" or "Paste from clipboard" button.
+such as a "Copy" or "Paste" button.
 
 ```powershell
 function Invoke-Copy {
-    $text = Get-NativeHTMLKitValue -Document $doc -Element output
     try {
-        Set-NativeHTMLKitClipboard -Application $app -Text $text
-        Set-NativeHTMLKitDocumentText -Document $doc -Element status -Text "Copied $($text.Length) characters."
+        Set-NativeHTMLKitClipboard -Application $app -Text (Get-NativeHTMLKitValue -Document $doc -Element text)
+        Set-Status 'Copied to the clipboard.'
     } catch [NativeHTMLKit.RpcException] {
-        Set-NativeHTMLKitDocumentText -Document $doc -Element status -Text ('Copy failed: ' + $_.Exception.RpcMessage)
+        Set-Status (Get-UnsupportedMessage 'Clipboard' $_.Exception)
     }
 }
 
 function Invoke-Paste {
-    try { Set-NativeHTMLKitDocumentValue -Document $doc -Element input -Value (Get-NativeHTMLKitClipboard -Application $app) }
-    catch [NativeHTMLKit.RpcException] { Set-NativeHTMLKitDocumentText -Document $doc -Element status -Text $_.Exception.RpcMessage }
+    try {
+        Set-NativeHTMLKitDocumentValue -Document $doc -Element text -Value (Get-NativeHTMLKitClipboard -Application $app)
+        Set-Status 'Pasted from the clipboard.'
+    } catch [NativeHTMLKit.RpcException] {
+        Set-Status (Get-UnsupportedMessage 'Clipboard' $_.Exception)
+    }
+    Update-Stats
 }
 ```
 
 ## Availability
 
-Check `clipboard_text` in `Get-NativeHTMLKitCapabilities` and disable the buttons when it is
-`$false`. In headless test mode the clipboard is unavailable and both cmdlets throw
+`Get-NativeHTMLKitCapabilities` reports `features.clipboard_text.available`: `$true` or `$false`
+once observed, `$null` while not known yet (availability is established by the native request).
+In headless test mode the clipboard is unavailable and both cmdlets throw
 `NativeHTMLKit.RpcException` (code -32001, `Clipboard requires a native event loop`); always
-handle that exception, because desktop clipboard owners can also refuse a request.
+handle that exception, because desktop clipboard owners can also refuse a request. The example
+turns -32001 into a short message:
+
+```powershell
+function Get-UnsupportedMessage([string]$What, [NativeHTMLKit.RpcException]$RpcError) {
+    if ($RpcError.Code -eq -32001 -or $script:clipboardKnownUnavailable) { return "$What is not available in this session." }
+    return "$What failed (code $($RpcError.Code))."
+}
+```
 
 ## Editing commands
 
@@ -56,12 +69,24 @@ document event with the `href` and the resolved `url` (as described in the
 your handler decides what happens, typically opening it in the user's browser:
 
 ```powershell
+function Open-Link([string]$Url) {
+    if (-not $Url.StartsWith('https://', [StringComparison]::Ordinal)) { Set-Status 'Only https links are opened.'; return }
+    try {
+        $result = Open-NativeHTMLKitExternal -Application $app -Target $Url -Window $window
+        if ($result.accepted) { Set-Status 'Opened the documentation.' } else { Set-Status 'Opening was cancelled.' }
+    } catch [NativeHTMLKit.RpcException] {
+        Set-Status (Get-UnsupportedMessage 'Opening links' $_.Exception)
+    }
+}
 $null = Register-NativeHTMLKitDocumentEvent -Document $doc -Type link_activated -Callback {
     param($evt)
-    try { $null = Open-NativeHTMLKitExternal -Application $app -Target ([string]$evt.url) -Window $window }
-    catch [NativeHTMLKit.RpcException] { Set-NativeHTMLKitDocumentText -Document $doc -Element status -Text $_.Exception.RpcMessage }
+    $url = [string]$evt.url
+    if (-not $url) { $url = $docsUrl }
+    Open-Link $url
 }
 ```
+
+The host reports the link's target; your code decides which schemes it opens (here only `https`).
 
 `Open-NativeHTMLKitExternal` accepts `http`, `https`, `mailto` and `file` URIs and absolute local
 paths, and refuses programs, scripts and shortcuts (code -32003). `-Reveal` shows a file in the file
@@ -74,10 +99,8 @@ manager instead of opening it. In headless mode both throw `NativeHTMLKit.RpcExc
 ```powershell
 $prefs = Get-NativeHTMLKitPreferences -Application $app     # color_scheme, reduced_motion, high_contrast, available, source
 $caps  = Get-NativeHTMLKitCapabilities -Application $app    # clipboard_text, external_open, file_dialogs, headless, ...
-Register-NativeHTMLKitNotification -Application $app -Method 'desktop.preferences_changed' -Callback {
-    param($params)
-    Update-ThemeLabel
-}
+# The notification carries a preferences snapshot (the same fields as Get-NativeHTMLKitPreferences).
+Register-NativeHTMLKitNotification -Application $app -Method 'desktop.preferences_changed' -Callback { param($params) Show-Preferences $params }
 ```
 
 Each preference is `$null` when the host has not observed it; in headless mode `available` is

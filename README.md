@@ -64,7 +64,7 @@ Twenty runnable apps, each verified against the real host on Linux and Windows (
 [process viewer](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/05-process-viewer.ps1),
 [log viewer](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/06-log-tail.ps1),
 [file viewer](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/07-file-preview.ps1),
-[multi-window notes](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/08-multi-window.ps1),
+[window manager](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/08-multi-window.ps1),
 [settings dialog](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/09-settings-dialog.ps1),
 [clipboard tool](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/10-clipboard-tool.ps1),
 [background checksums](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/11-background-checksums.ps1),

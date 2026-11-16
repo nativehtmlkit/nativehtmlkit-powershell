@@ -1,162 +1,257 @@
-# 11-background-checksums.ps1 - hash every file in a folder without freezing the window.
+﻿# 11-background-checksums.ps1 - hash every file of a folder in background tasks, with
+# progress and cancel.
 #
-# Teaches: Start-NativeHTMLKitTask (work in an isolated runspace, plain data in and out),
-# progress by splitting the work into batches (each -OnCompleted renders a result and
-# starts the next batch), cancellation with Stop-NativeHTMLKitTask (-OnFailed receives an
-# OperationCanceledException), -TimeoutMilliseconds, and Receive-NativeHTMLKitTask.
+# Teaches: keeping slow work OFF the event callback (callbacks run one at a time, so a long
+# job there would delay every later event); Start-NativeHTMLKitTask (work in an isolated
+# runspace, plain data in and out) split into batches of about 0.2 s, so each -OnCompleted
+# updates the document a few times per second and starts the next batch; cancelling with
+# Stop-NativeHTMLKitTask (-OnFailed receives an OperationCanceledException); one atomic
+# Invoke-NativeHTMLKitBatch per progress update; Set-NativeHTMLKitBeforeQuit asking before
+# quitting while a job is running; the native folder dialog; file names are untrusted text,
+# encoded with [Net.WebUtility]::HtmlEncode.
 #
-# Run:  pwsh -File ./11-background-checksums.ps1 [-Folder C:\Tools]
+# Run:  pwsh -File ./11-background-checksums.ps1 [-Folder C:\Tools]      (default: the current directory)
 #       powershell.exe -NoProfile -File .\11-background-checksums.ps1
-# -SelfTest hashes this examples folder, checks one hash, tests cancel, and quits.
+# Type or browse to a folder, then press Start.
+# -SelfTest hashes a scratch folder, checks hashes, rows, escaping, progress, a bad folder,
+# cancel and the quit veto, and quits.
 param([string]$Folder, [switch]$SelfTest)
 $ErrorActionPreference = 'Stop'
 Import-Module NativeHTMLKit
 
 $app = Start-NativeHTMLKitScript -Name 'Checksums'
 try {
-    if (-not $Folder) { $Folder = $PSScriptRoot }
-    $window = New-NativeHTMLKitWindow -Application $app -Title 'Checksums' -Width 860 -Height 600
+    $window = New-NativeHTMLKitWindow -Application $app -Title 'Checksums' -Width 760 -Height 560
     $doc = Open-NativeHTMLKitHtml -Window $window -Html @'
 <!doctype html>
-<html><head><style>
-  body { font-family: system-ui, sans-serif; margin: 16px; }
-  .bar { display: flex; gap: 8px; align-items: center; }
-  #folder { flex: 1; padding: 5px 8px; }
-  progress { width: 100%; height: 14px; margin: 10px 0 4px; }
-  table { border-collapse: collapse; width: 100%; font-size: 12px; }
-  td, th { text-align: left; padding: 3px 6px; border-bottom: 1px solid #e3e3e3; }
-  td.hash { font-family: monospace; }
-  td.error { color: #8a1c1c; }
-  #status { font-size: 13px; color: #444; }
+<html><head><meta charset="utf-8"><style>
+  body { margin:0; padding:16px 20px; font:14px sans-serif; background:#f5f6f9; color:#1d2230; }
+  h1 { font-size:20px; margin:0 0 10px; }
+  form { display:flex; gap:8px; }
+  input[type=text] { flex:1; padding:7px; font-family:monospace; }
+  button { padding:6px 12px; }
+  .progress { height:8px; background:#e0e4ec; border-radius:4px; margin:12px 0 6px; }
+  #bar { height:8px; width:0%; background:#3b74e8; border-radius:4px; }
+  #warning { display:none; background:#fff0c9; padding:8px 12px; border-radius:6px; }
+  #warning.shown { display:block; }
+  table { width:100%; border-collapse:collapse; background:#fff; font-size:12px; }
+  td { padding:4px 8px; border-bottom:1px solid #e6e8ee; font-family:monospace; }
+  td.size { text-align:right; color:#5f6879; }
 </style></head>
 <body>
-  <div class="bar">
-    <input id="folder" aria-label="Folder">
-    <button id="start">Compute SHA-256</button>
-    <button id="cancel" disabled>Cancel</button>
-  </div>
-  <progress id="progress" max="1" value="0"></progress>
-  <p id="status" role="status">Choose a folder and press Compute.</p>
-  <table><thead><tr><th>File</th><th>SHA-256</th></tr></thead><tbody id="rows"></tbody></table>
+  <h1>Folder checksums (SHA-256)</h1>
+  <form id="job"><input id="folder" type="text" placeholder="Folder path" required>
+    <button id="browse" type="button">Browse…</button>
+    <button id="start" type="submit">Start</button><button id="cancel" type="button">Cancel</button></form>
+  <div class="progress"><div id="bar"></div></div>
+  <p id="status">Idle.</p>
+  <p id="warning">A job is still running. Cancel it, or quit again to stop it.</p>
+  <table><tbody id="results"></tbody></table>
 </body></html>
 '@
-    Set-NativeHTMLKitDocumentValue -Document $doc -Element folder -Value $Folder
 
-    # Background work: an isolated runspace without this script's variables or modules.
-    $hashBatch = {
-        param([string[]]$Files)
-        foreach ($file in $Files) {
+    # ----- background work: isolated runspaces without this script's variables or modules -----
+    # Lists the files below Root as relative '/' names, sorted like paths (part by part).
+    $listFiles = {
+        param([string]$Root)
+        $comparer = [StringComparer]::Ordinal
+        if ([IO.Path]::DirectorySeparatorChar -eq '\') { $comparer = [StringComparer]::OrdinalIgnoreCase }
+        [string[]]$names = @(Get-ChildItem -LiteralPath $Root -File -Recurse -Force -ErrorAction SilentlyContinue |
+            ForEach-Object { $_.FullName.Substring($Root.Length).TrimStart('\', '/').Replace('\', '/') })
+        [string[]]$keys = @($names | ForEach-Object { $_.Replace('/', [string][char]0) })   # '/' sorts before every character
+        if ($names.Count -gt 1) { [Array]::Sort($keys, $names, $comparer) }
+        $names
+    }
+    # Hashes files in order until about BudgetMilliseconds have passed (at least one file).
+    # Reading 1 MB chunks in a PowerShell loop lets Stop-NativeHTMLKitTask stop it between chunks.
+    $hashFiles = {
+        param([string]$Root, [string[]]$Names, [int]$BudgetMilliseconds)
+        $clock = [Diagnostics.Stopwatch]::StartNew()
+        $buffer = New-Object byte[] (1024 * 1024)
+        foreach ($name in $Names) {
+            $path = [IO.Path]::Combine($Root, $name)
+            $size = [long]0
             try {
-                $stream = [IO.File]::OpenRead($file)
-                try { $sha = [Security.Cryptography.SHA256]::Create(); $bytes = $sha.ComputeHash($stream) } finally { $stream.Dispose() }
-                [pscustomobject]@{ File = $file; Hash = ([BitConverter]::ToString($bytes) -replace '-', '').ToLowerInvariant(); Error = $null }
+                $size = (New-Object IO.FileInfo $path).Length
+                $sha = [Security.Cryptography.SHA256]::Create()
+                $stream = [IO.File]::OpenRead($path)
+                try {
+                    while (($read = $stream.Read($buffer, 0, $buffer.Length)) -gt 0) { [void]$sha.TransformBlock($buffer, 0, $read, $null, 0) }
+                    [void]$sha.TransformFinalBlock($buffer, 0, 0)
+                    $digest = ([BitConverter]::ToString($sha.Hash) -replace '-', '').ToLowerInvariant()
+                } finally { $stream.Dispose(); $sha.Dispose() }
+            } catch [Management.Automation.PipelineStoppedException] {
+                throw                                        # Stop-NativeHTMLKitTask: end now
             } catch {
-                [pscustomobject]@{ File = $file; Hash = $null; Error = $_.Exception.Message }
+                $digest = 'unreadable (' + $_.Exception.Message + ')'
             }
+            [pscustomobject]@{ Name = $name; Hash = $digest; Size = $size }
+            if ($clock.ElapsedMilliseconds -gt $BudgetMilliseconds) { break }
         }
     }
 
-    $job = @{ Files = @(); Next = 0; Done = 0; Task = $null; Running = $false; Root = ''; Results = @{} }
+    # ----- UI side: everything below runs on this runspace -----
+    $job = @{ Task = $null; Running = $false; Cancel = $false; QuitWarned = $false; Root = ''; Files = @(); Next = 0; Results = [ordered]@{} }
 
-    function Set-Running([bool]$Running) {
-        $job.Running = $Running
-        if ($Running) {
-            Set-NativeHTMLKitDocumentAttribute -Document $doc -Element start -Name disabled
-            Set-NativeHTMLKitDocumentAttribute -Document $doc -Element cancel -Name disabled -Remove
-        } else {
-            Set-NativeHTMLKitDocumentAttribute -Document $doc -Element start -Name disabled -Remove
-            Set-NativeHTMLKitDocumentAttribute -Document $doc -Element cancel -Name disabled
-        }
+    function Set-Status([string]$Text) { Set-NativeHTMLKitDocumentText -Document $doc -Element status -Text $Text }
+
+    function Send-Progress([string]$Rows, [int]$Done, [int]$Total) {
+        $operations = @(
+            @{ op = 'set_attribute'; element = 'bar'; name = 'style'; value = ('width:' + [Math]::Floor($Done * 100 / [Math]::Max($Total, 1)) + '%') }
+            @{ op = 'set_text'; element = 'status'; text = "Hashing… $Done/$Total" })
+        if ($Rows) { $operations = @(@{ op = 'insert_html'; element = 'results'; position = 'beforeend'; html = $Rows }) + $operations }
+        Invoke-NativeHTMLKitBatch -Document $doc -Operations $operations
     }
 
-    function Add-ResultRows($Items) {
-        $html = New-Object System.Text.StringBuilder
-        foreach ($item in $Items) {
-            $job.Results[$item.File] = $item
-            $name = [Net.WebUtility]::HtmlEncode($item.File.Substring($job.Root.Length).TrimStart('\', '/'))
-            if ($item.Error) { [void]$html.Append("<tr><td>$name</td><td class=`"error`">" + [Net.WebUtility]::HtmlEncode($item.Error) + '</td></tr>') }
-            else { [void]$html.Append("<tr><td>$name</td><td class=`"hash`">$($item.Hash)</td></tr>") }
-        }
-        Set-NativeHTMLKitDocumentHtml -Document $doc -Element rows -Html $html.ToString() -Position beforeend
+    function Complete-Job {
+        $job.Running = $false
+        $job.Task = $null
+        Send-Progress '' $job.Results.Count $job.Files.Count
+        $word = 'Done:'
+        if ($job.Cancel) { $word = 'Cancelled after' }
+        Set-Status "$word $($job.Results.Count) of $($job.Files.Count) file(s)."
+        Set-NativeHTMLKitClass -Document $doc -Element warning -Name shown -Remove
     }
 
     function Start-NextBatch {
-        if ($job.Next -ge $job.Files.Count) {
-            Set-Running $false
-            Set-NativeHTMLKitDocumentText -Document $doc -Element status -Text "Done: $($job.Done) file(s)."
-            return
-        }
-        $batch = @($job.Files[$job.Next..([Math]::Min($job.Files.Count, $job.Next + 10) - 1)])
-        $job.Next += $batch.Count
-        # ,$batch passes the array as ONE argument (the scriptblock's -Files parameter).
-        $job.Task = Start-NativeHTMLKitTask -Application $app -ScriptBlock $hashBatch -ArgumentList @(, [string[]]$batch) -TimeoutMilliseconds 60000 -OnCompleted {
+        $names = @($job.Files[$job.Next..($job.Files.Count - 1)])
+        # Inside @(...) the array stays ONE argument (the scriptblock's -Names parameter).
+        $job.Task = Start-NativeHTMLKitTask -Application $app -ScriptBlock $hashFiles -ArgumentList @($job.Root, [string[]]$names, 200) -OnCompleted {
             param($items)
-            Add-ResultRows $items
-            $job.Done += @($items).Count
-            Set-NativeHTMLKitDocumentAttribute -Document $doc -Element progress -Name value -Value ([string]$job.Done)
-            Set-NativeHTMLKitDocumentText -Document $doc -Element status -Text "Hashed $($job.Done) of $($job.Files.Count) file(s)..."
-            if ($job.Running) { Start-NextBatch }
+            $rows = New-Object System.Text.StringBuilder
+            foreach ($item in @($items)) {
+                $job.Results[$item.Name] = $item.Hash
+                [void]$rows.Append('<tr><td>' + [Net.WebUtility]::HtmlEncode($item.Hash) + '</td><td>' + [Net.WebUtility]::HtmlEncode($item.Name) + '</td>' +
+                    '<td class="size">' + ([long]$item.Size).ToString('N0', [Globalization.CultureInfo]::InvariantCulture) + '</td></tr>')
+            }
+            $job.Next += @($items).Count
+            Send-Progress $rows.ToString() $job.Results.Count $job.Files.Count
+            if ($job.Cancel -or $job.Next -ge $job.Files.Count) { Complete-Job } else { Start-NextBatch }
         } -OnFailed {
             param($failure)
-            Set-Running $false
-            $text = 'Stopped: ' + $failure.Message
-            if ($failure -is [OperationCanceledException]) { $text = "Cancelled after $($job.Done) of $($job.Files.Count) file(s)." }
-            Set-NativeHTMLKitDocumentText -Document $doc -Element status -Text $text
+            if ($failure -is [OperationCanceledException]) { Complete-Job; return }
+            $job.Running = $false
+            Set-Status ('Failed: ' + $failure.Message)
         }
     }
 
-    function Start-Hashing {
-        $root = (Get-NativeHTMLKitValue -Document $doc -Element folder).Trim()
-        if (-not (Test-Path -LiteralPath $root -PathType Container)) {
-            Set-NativeHTMLKitDocumentText -Document $doc -Element status -Text 'That folder does not exist.'
+    function Start-Checksums([string]$Path) {
+        if ($job.Running) { Set-Status 'A job is already running.'; return $null }
+        if (-not $Path -or -not (Test-Path -LiteralPath $Path -PathType Container)) { Set-Status "Not a folder: $Path"; return $null }
+        $job.Root = (Resolve-Path -LiteralPath $Path).ProviderPath
+        $job.Cancel = $false; $job.QuitWarned = $false; $job.Results = [ordered]@{}; $job.Files = @(); $job.Next = 0
+        $job.Running = $true
+        Set-NativeHTMLKitDocumentHtml -Document $doc -Element results -Html ''
+        $job.Task = Start-NativeHTMLKitTask -Application $app -ScriptBlock $listFiles -ArgumentList @($job.Root) -OnCompleted {
+            param($names)
+            $job.Files = @($names)
+            if ($job.Cancel -or $job.Files.Count -eq 0) { Complete-Job } else { Start-NextBatch }
+        } -OnFailed {
+            param($failure)
+            $job.Running = $false
+            Set-Status ('Failed: ' + $failure.Message)
+        }
+        return $job.Task
+    }
+
+    function Stop-Checksums {
+        if (-not $job.Running) { return }
+        $job.Cancel = $true
+        # Listing is left to finish so the total is known; a hashing batch is stopped.
+        if ($job.Files.Count -gt 0 -and $null -ne $job.Task) { Stop-NativeHTMLKitTask -Task $job.Task }
+    }
+
+    function Select-Folder {
+        try {
+            # Waits (pumping events) until the user picks or cancels.
+            $result = Show-NativeHTMLKitFileDialog -Window $window -Kind ChooseFolder -Title 'Choose a folder to hash'
+        } catch [NativeHTMLKit.RpcException] {
+            Set-Status "Folder dialog unavailable (code $($_.Exception.Code)); type a path instead."
             return
         }
-        $job.Root = (Resolve-Path -LiteralPath $root).ProviderPath
-        $job.Files = @(Get-ChildItem -LiteralPath $job.Root -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 2000 | ForEach-Object { $_.FullName })
-        $job.Next = 0; $job.Done = 0; $job.Results = @{}
-        Set-NativeHTMLKitDocumentHtml -Document $doc -Element rows -Html ''
-        Set-NativeHTMLKitDocumentAttribute -Document $doc -Element progress -Name max -Value ([string][Math]::Max(1, $job.Files.Count))
-        Set-NativeHTMLKitDocumentAttribute -Document $doc -Element progress -Name value -Value '0'
-        Set-Running $true
-        Start-NextBatch
+        $paths = @($result.paths)
+        if (-not $result.cancelled -and $paths.Count -gt 0) { Set-NativeHTMLKitDocumentValue -Document $doc -Element folder -Value ([string]$paths[0]) }
     }
 
-    function Stop-Hashing {
-        if (-not $job.Running) { return }
-        $job.Running = $false
-        # A request, not a guarantee: the worker may finish its current file first.
+    # The host's quit request: the first while busy is refused with a warning, a second is allowed.
+    function Test-MayQuit {
+        if ($job.Running -and -not $job.QuitWarned) {
+            $job.QuitWarned = $true
+            Set-NativeHTMLKitClass -Document $doc -Element warning -Name shown
+            return $false
+        }
+        $job.Cancel = $true
         if ($null -ne $job.Task) { Stop-NativeHTMLKitTask -Task $job.Task }
+        return $true
     }
 
-    $null = Register-NativeHTMLKitDocumentEvent -Document $doc -Type click -Element start -Callback { Start-Hashing }
-    $null = Register-NativeHTMLKitDocumentEvent -Document $doc -Type click -Element cancel -Callback { Stop-Hashing }
+    $null = Register-NativeHTMLKitDocumentEvent -Document $doc -Type submit -Element job -Callback {
+        $null = Start-Checksums (Get-NativeHTMLKitValue -Document $doc -Element folder).Trim()
+    }
+    $null = Register-NativeHTMLKitDocumentEvent -Document $doc -Type click -Element cancel -Callback { Stop-Checksums }
+    $null = Register-NativeHTMLKitDocumentEvent -Document $doc -Type click -Element browse -Callback { Select-Folder }
+    Set-NativeHTMLKitBeforeQuit -Application $app -Callback { Test-MayQuit }
 
+    if (-not $Folder) { $Folder = (Get-Location).ProviderPath }
+    Set-NativeHTMLKitDocumentValue -Document $doc -Element folder -Value $Folder
     Set-NativeHTMLKitReady -Application $app
 
     if ($SelfTest) {
-        function Wait-For([scriptblock]$Condition) {
+        function Wait-For([scriptblock]$Condition, [int]$TimeoutMilliseconds = 30000) {
             $clock = [Diagnostics.Stopwatch]::StartNew()
             while (-not (& $Condition)) {
-                if ($clock.ElapsedMilliseconds -gt 60000) { throw "timed out waiting for: $Condition" }
-                $null = Wait-NativeHTMLKit -Application $app -TimeoutMilliseconds 100
+                if ($clock.ElapsedMilliseconds -gt $TimeoutMilliseconds) { return $false }
+                $null = Wait-NativeHTMLKit -Application $app -TimeoutMilliseconds 50
             }
+            return $true
         }
-        Start-Hashing
-        Wait-For { -not $job.Running }
-        $status = Get-NativeHTMLKitDocumentText -Document $doc -Element status
-        if ($status -ne "Done: $($job.Files.Count) file(s).") { throw "unexpected status: $status" }
-        $me = $job.Results[$PSCommandPath]
-        $expected = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant()
-        if ($null -eq $me -or $me.Hash -ne $expected) { throw 'hash of this script is wrong' }
-        if ((Find-NativeHTMLKitElement -Document $doc -Selector '#rows tr').matched_nodes -ne $job.Files.Count) { throw 'row count mismatch' }
-        # Cancellation: a slow worker that is stopped reports OperationCanceledException.
-        $script:cancelled = $null
-        $slow = Start-NativeHTMLKitTask -Application $app -ScriptBlock { Start-Sleep -Seconds 30 } -OnFailed { param($f) $script:cancelled = $f.GetType().Name }
-        Stop-NativeHTMLKitTask -Task $slow
-        Wait-For { $null -ne $script:cancelled }
-        if ($script:cancelled -ne 'OperationCanceledException') { throw "unexpected failure type: $script:cancelled" }
-        $state = Receive-NativeHTMLKitTask -Task $slow
-        if (-not $state.Completed) { throw 'a stopped task is reported as completed' }
+        function Assert-Check([string]$Name, [bool]$Ok, [string]$Detail = '') { if (-not $Ok) { throw "check failed: $Name $Detail" } }
+        function Get-Sha256([byte[]]$Bytes) {
+            $sha = [Security.Cryptography.SHA256]::Create()
+            try { return ([BitConverter]::ToString($sha.ComputeHash($Bytes)) -replace '-', '').ToLowerInvariant() } finally { $sha.Dispose() }
+        }
+        function Test-WarningShown { return ([string](Invoke-NativeHTMLKitDocumentCommand -Document $doc -Operation get_attribute -Parameters @{ element = 'warning'; name = 'class' }).value) -match '\bshown\b' }
+
+        $scratch = Join-Path ([IO.Path]::GetTempPath()) ('nhk-checksums-' + [guid]::NewGuid().ToString('N'))
+        $unsafe = 'sub/b & <x>.bin'
+        if ([IO.Path]::DirectorySeparatorChar -eq '\') { $unsafe = "sub/b & 'x' &amp;.bin" }
+        $big = New-Object byte[] (256 * 4000)
+        for ($i = 0; $i -lt $big.Length; $i++) { $big[$i] = [byte]($i % 256) }
+        $files = [ordered]@{ 'a.txt' = [Text.Encoding]::ASCII.GetBytes('alpha'); $unsafe = $big; 'c.md' = (New-Object byte[] 0) }
+        try {
+            foreach ($name in $files.Keys) {
+                $path = [IO.Path]::Combine($scratch, $name)
+                $null = New-Item -ItemType Directory -Force -Path ([IO.Path]::GetDirectoryName($path))
+                [IO.File]::WriteAllBytes($path, $files[$name])
+            }
+            $worker = Start-Checksums $scratch
+            Assert-Check 'checksum.worker_started' ($null -ne $worker)
+            Assert-Check 'checksum.finished' (Wait-For { -not $job.Running })
+            $ok = $job.Results.Count -eq $files.Count
+            foreach ($name in $files.Keys) { if (-not $job.Results.Contains($name) -or $job.Results[$name] -ne (Get-Sha256 $files[$name])) { $ok = $false } }
+            Assert-Check 'checksum.hashes_correct' $ok
+            Assert-Check 'checksum.rows_rendered' ((Find-NativeHTMLKitElement -Document $doc -Selector '#results tr').matched_nodes -eq 3)
+            Assert-Check 'checksum.names_escaped' ((Get-NativeHTMLKitDocumentText -Document $doc -Element results).Contains($unsafe))
+            $status = Get-NativeHTMLKitDocumentText -Document $doc -Element status
+            Assert-Check 'checksum.status_done' ($status -eq 'Done: 3 of 3 file(s).') $status
+            $style = (Invoke-NativeHTMLKitDocumentCommand -Document $doc -Operation get_attribute -Parameters @{ element = 'bar'; name = 'style' }).value
+            Assert-Check 'checksum.progress_full' ($style -eq 'width:100%') $style
+            Assert-Check 'checksum.bad_folder' ($null -eq (Start-Checksums (Join-Path $scratch 'missing')) -and (Get-NativeHTMLKitDocumentText -Document $doc -Element status).StartsWith('Not a folder'))
+            # Cancel during listing: the listing finishes, then nothing is hashed.
+            $null = Start-Checksums $scratch
+            Stop-Checksums
+            Assert-Check 'checksum.cancel' ((Wait-For { -not $job.Running }) -and (Get-NativeHTMLKitDocumentText -Document $doc -Element status) -eq 'Cancelled after 0 of 3 file(s).')
+            Select-Folder   # headless: no folder dialog, the fallback message is shown
+            $status = Get-NativeHTMLKitDocumentText -Document $doc -Element status
+            Assert-Check 'checksum.browse_handled' ($status -match '^Folder dialog unavailable \(code -?\d+\); type a path instead\.$' -or $status -eq 'Cancelled after 0 of 3 file(s).') $status
+            # Quit while busy: simulate a running job; the first quit is refused, the second allowed.
+            $job.Task = Start-NativeHTMLKitTask -Application $app -ScriptBlock { Start-Sleep -Milliseconds 1500 } -OnFailed { param($failure) $null = $failure }
+            $job.Running = $true; $job.QuitWarned = $false
+            Assert-Check 'checksum.quit_vetoed_while_busy' (-not (Test-MayQuit) -and (Test-WarningShown))
+            Assert-Check 'checksum.second_quit_allowed' (Test-MayQuit)
+        } finally {
+            Remove-Item -LiteralPath $scratch -Recurse -Force -ErrorAction SilentlyContinue
+        }
         [Console]::Out.WriteLine('SELFTEST PASS 11-background-checksums')
         $null = Request-NativeHTMLKitQuit -Application $app
     }

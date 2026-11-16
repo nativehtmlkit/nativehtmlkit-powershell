@@ -39,9 +39,9 @@ What crosses the boundary:
 ## Progress
 
 A task reports only when it finishes. For progress, split the work into batches and start the next
-batch from `-OnCompleted`, updating a `<progress>` element each time
-([11-background-checksums.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/11-background-checksums.ps1) hashes 10 files per
-batch). Batches also make cancellation responsive.
+batch from `-OnCompleted`, updating a progress bar each time
+([11-background-checksums.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/11-background-checksums.ps1) hashes files for about
+0.2 s per batch, so the window is updated a few times per second). Batches also make cancellation responsive.
 
 ## Cancel and time out
 

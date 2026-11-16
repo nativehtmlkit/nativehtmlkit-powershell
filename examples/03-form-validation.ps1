@@ -1,129 +1,192 @@
-# 03-form-validation.ps1 - an account request form with native and PowerShell validation.
+﻿# 03-form-validation.ps1 - a sign-up form: native HTML constraint validation plus a cross-field rule.
 #
-# Teaches: the submit event, Get-NativeHTMLKitFormData entries, native constraint checks
-# (required, type=email, minlength) that block submission before PowerShell sees it,
-# application rules in PowerShell, per-field error text with aria-invalid, and
-# Reset-NativeHTMLKitForm.
+# Teaches: built-in validation (required, minlength, type=email, min/max) runs on submit; an
+# invalid form fires one 'invalid' event per failing control and no 'submit'. The
+# set_custom_validity document command for a rule HTML cannot express (passwords must match).
+# Reading the submitted values with Get-NativeHTMLKitFormData (ordered entries, repeated names
+# kept), showing an error summary and a result with encoded user text, Reset-NativeHTMLKitForm.
 #
 # Run:  pwsh -File ./03-form-validation.ps1     (or powershell.exe -NoProfile -File .\03-form-validation.ps1)
-# -SelfTest fills and submits the form through the public API and quits.
+# -SelfTest submits the empty, the mismatched and the valid form through the public API and quits.
 param([switch]$SelfTest)
 $ErrorActionPreference = 'Stop'
 Import-Module NativeHTMLKit
 
-$app = Start-NativeHTMLKitScript -Name 'Account request'
+$app = Start-NativeHTMLKitScript -Name 'Sign-up form'
 try {
-    $window = New-NativeHTMLKitWindow -Application $app -Title 'Request an account' -Width 560 -Height 560
+    $window = New-NativeHTMLKitWindow -Application $app -Title 'Sign up' -Width 600 -Height 820
     $doc = Open-NativeHTMLKitHtml -Window $window -Html @'
 <!doctype html>
-<html><head><style>
-  body { font-family: system-ui, sans-serif; margin: 28px; max-width: 460px; }
-  label { display: block; margin-top: 12px; font-weight: 600; }
-  input, select { width: 100%; padding: 6px 8px; font-size: 15px; box-sizing: border-box; }
-  input[aria-invalid="true"] { border: 2px solid #b3261e; }
-  .error { color: #b3261e; font-size: 13px; min-height: 1em; display: block; }
-  .actions { margin-top: 18px; display: flex; gap: 8px; }
-  #status { margin-top: 16px; font-weight: 600; }
+<html><head><meta charset="utf-8"><style>
+  body { margin:0; background:#eef1f6; color:#1f2633; font:14px/1.45 sans-serif; }
+  main { max-width:520px; margin:28px auto; padding:24px; background:#fff; border-radius:10px; }
+  h1 { margin:0 0 4px; font-size:24px; }
+  .hint { color:#68708a; margin:0 0 18px; }
+  label { display:block; margin:12px 0 4px; font-weight:bold; }
+  input[type=text], input[type=email], input[type=password], input[type=number], select {
+    width:100%; box-sizing:border-box; padding:8px; border:1px solid #c7cddb; border-radius:6px; }
+  .check { font-weight:normal; display:flex; gap:8px; align-items:center; }
+  fieldset { border:1px solid #d8dce6; border-radius:6px; margin-top:12px; }
+  button { margin-top:18px; padding:10px 18px; border:0; border-radius:6px; background:#2f6fec; color:#fff; }
+  #errors { color:#b3261e; }
+  #errors:empty, #result:empty { display:none; }
+  #result { background:#e9f6ec; border-radius:6px; padding:10px 14px; margin-top:16px; }
 </style></head>
-<body>
-<form id="signup">
-  <label for="username">User name</label>
-  <input id="username" name="username" required minlength="3" maxlength="20" autocomplete="off">
-  <span class="error" id="username-error"></span>
-
-  <label for="email">E-mail</label>
-  <input id="email" name="email" type="email" required>
-  <span class="error" id="email-error"></span>
-
-  <label for="team">Team</label>
-  <select id="team" name="team">
-    <option value="">Choose...</option><option>Operations</option><option>Security</option><option>Support</option>
-  </select>
-  <span class="error" id="team-error"></span>
-
-  <label><input type="checkbox" id="terms" name="terms" value="yes"> I accept the usage policy</label>
-  <span class="error" id="terms-error"></span>
-
-  <div class="actions"><button id="submit" type="submit">Request account</button><button id="clear" type="button">Clear</button></div>
-</form>
-<p id="status" aria-live="polite"></p>
-</body></html>
+<body><main>
+  <h1>Create an account</h1>
+  <p class="hint">All fields except the newsletter are required.</p>
+  <ul id="errors" role="alert"></ul>
+  <form id="signup">
+    <label for="name">Name</label>
+    <input id="name" name="name" type="text" required minlength="2" maxlength="80">
+    <label for="email">Email</label>
+    <input id="email" name="email" type="email" required>
+    <label for="password">Password (8+ characters)</label>
+    <input id="password" name="password" type="password" required minlength="8">
+    <label for="confirm">Repeat password</label>
+    <input id="confirm" name="confirm" type="password" required>
+    <label for="age">Age</label>
+    <input id="age" name="age" type="number" required min="13" max="120">
+    <label for="country">Country</label>
+    <select id="country" name="country" required>
+      <option value="">Choose…</option><option value="de">Germany</option>
+      <option value="fr">France</option><option value="jp">Japan</option><option value="us">United States</option>
+    </select>
+    <fieldset><legend>Interests</legend>
+      <label class="check"><input type="checkbox" name="topic" value="news"> News</label>
+      <label class="check"><input type="checkbox" name="topic" value="releases"> Releases</label>
+      <label class="check"><input type="checkbox" name="topic" value="events"> Events</label>
+    </fieldset>
+    <label class="check"><input id="terms" name="terms" type="checkbox" required> I accept the terms</label>
+    <button id="submit" type="submit">Sign up</button>
+  </form>
+  <div id="result"></div>
+</main></body></html>
 '@
 
-    $script:takenNames = @('admin', 'root', 'administrator', 'guest')
-    $script:fields = @('username', 'email', 'team', 'terms')
+    $script:labels = @{ name = 'Name'; email = 'Email'; password = 'Password'; confirm = 'Repeat password'
+        age = 'Age'; country = 'Country'; terms = 'Terms' }
+    $script:errors = New-Object System.Collections.Generic.List[string]
+    $script:accounts = New-Object System.Collections.Generic.List[object]
+    $mismatch = 'The passwords do not match.'
 
-    function ConvertTo-FormTable($FormData) {
-        # Entries keep document order; unchecked checkboxes are absent, like in a browser.
-        $table = @{}
-        foreach ($entry in $FormData.entries) { $table[$entry.name] = [string]$entry.value }
-        return $table
+    function ConvertTo-Html([string]$Text) { return [Net.WebUtility]::HtmlEncode($Text) }
+
+    function Show-Errors {
+        $items = @($script:errors | ForEach-Object { '<li>' + (ConvertTo-Html $_) + '</li>' })
+        Set-NativeHTMLKitDocumentHtml -Document $doc -Element errors -Html ($items -join '')
     }
 
-    function Set-FieldError([string]$Field, [string]$Message) {
-        Set-NativeHTMLKitDocumentText -Document $doc -Element "$Field-error" -Text $Message
-        if ($Message) { Set-NativeHTMLKitDocumentAttribute -Document $doc -Element $Field -Name 'aria-invalid' -Value 'true' }
-        else { Set-NativeHTMLKitDocumentAttribute -Document $doc -Element $Field -Name 'aria-invalid' -Remove }
+    function Update-PasswordMatch {
+        # A custom validity message makes the control invalid until it is cleared again.
+        $same = (Get-NativeHTMLKitValue -Document $doc -Element password) -ceq (Get-NativeHTMLKitValue -Document $doc -Element confirm)
+        $message = ''
+        if (-not $same) { $message = $mismatch }
+        $null = Invoke-NativeHTMLKitDocumentCommand -Document $doc -Operation set_custom_validity -Parameters @{ element = 'confirm'; message = $message }
     }
 
-    function Test-Request([hashtable]$Values) {
-        # Rules the HTML attributes cannot express. Returns field -> message.
-        $problems = @{}
-        $name = ([string]$Values['username']).Trim()
-        if ($name -notmatch '^[A-Za-z][A-Za-z0-9._-]*$') { $problems.username = 'Start with a letter; use letters, digits, dot, dash or underscore.' }
-        elseif ($script:takenNames -contains $name.ToLowerInvariant()) { $problems.username = "'$name' is reserved. Choose another name." }
-        if (-not ([string]$Values['email']).EndsWith('@example.org')) { $problems.email = 'Use your @example.org address.' }
-        if (-not $Values['team']) { $problems.team = 'Choose a team.' }
-        if ($Values['terms'] -ne 'yes') { $problems.terms = 'The usage policy must be accepted.' }
-        return $problems
+    function Invoke-SignupSubmit {
+        # Runs the same path as clicking "Sign up" (also used by the self-test).
+        Update-PasswordMatch
+        $script:errors.Clear()
+        Set-NativeHTMLKitDocumentHtml -Document $doc -Element errors -Html ''
+        return (Submit-NativeHTMLKitForm -Document $doc -Form signup -Submitter submit)
     }
 
-    function Invoke-Submit {
-        $values = ConvertTo-FormTable (Get-NativeHTMLKitFormData -Document $doc -Form signup)
-        $problems = Test-Request $values
-        foreach ($field in $script:fields) { Set-FieldError $field ([string]$problems[$field]) }
-        if ($problems.Count -gt 0) {
-            Set-NativeHTMLKitDocumentText -Document $doc -Element status -Text "Please correct $($problems.Count) field(s)."
-            Set-NativeHTMLKitFocus -Document $doc -Element (@($script:fields | Where-Object { $problems.ContainsKey($_) })[0])
+    # 'invalid' does not bubble: its path holds only the control itself, so subscribe
+    # document-wide (no -Element) and keep the controls of this form.
+    $null = Register-NativeHTMLKitDocumentEvent -Document $doc -Type invalid -Callback {
+        param($evt)
+        # One event per invalid control, in document order, before (instead of) 'submit'.
+        $element = [string]$evt.element
+        if (-not $script:labels.ContainsKey($element)) { return }
+        $message = 'Invalid value'
+        if ($null -ne $evt.validity -and $evt.validity.message) { $message = [string]$evt.validity.message }
+        $script:errors.Add($script:labels[$element] + ': ' + $message)
+        Show-Errors
+        Set-NativeHTMLKitDocumentText -Document $doc -Element result -Text ''
+    }
+
+    $null = Register-NativeHTMLKitDocumentEvent -Document $doc -Type submit -Element signup -Callback {
+        # Callbacks run after native dispatch, so a fast typist can submit before the last
+        # 'input' event updated the custom validity. Validate again here.
+        if ((Get-NativeHTMLKitValue -Document $doc -Element password) -cne (Get-NativeHTMLKitValue -Document $doc -Element confirm)) {
+            Update-PasswordMatch
+            $script:errors.Clear()
+            $script:errors.Add("Repeat password: $mismatch")
+            Show-Errors
             return
         }
-        Set-NativeHTMLKitDocumentText -Document $doc -Element status -Text "Request for $($values['username']) ($($values['team'])) recorded."
+        $values = @{}
+        foreach ($entry in @((Get-NativeHTMLKitFormData -Document $doc -Form signup).entries)) {
+            # Ordered; checkboxes may repeat a name.
+            if (-not $values.ContainsKey($entry.name)) { $values[$entry.name] = New-Object System.Collections.Generic.List[string] }
+            $values[$entry.name].Add([string]$entry.value)
+        }
+        $topics = @()
+        if ($values.ContainsKey('topic')) { $topics = $values['topic'].ToArray() }
+        $account = [pscustomobject]@{ name = $values['name'][0]; email = $values['email'][0]
+            country = $values['country'][0]; topics = $topics }
+        $script:accounts.Add($account)
+        $script:errors.Clear()
+        Set-NativeHTMLKitDocumentHtml -Document $doc -Element errors -Html ''
+        $interests = $topics -join ', '
+        if (-not $interests) { $interests = 'none' }
+        Set-NativeHTMLKitDocumentHtml -Document $doc -Element result -Html (
+            '<strong>Welcome, ' + (ConvertTo-Html $account.name) + '!</strong><br>' +
+            'We will write to ' + (ConvertTo-Html $account.email) + '. Interests: ' + (ConvertTo-Html $interests) + '.')
+        $null = Reset-NativeHTMLKitForm -Document $doc -Form signup
     }
 
-    # The host runs native validation first; submit is only dispatched for a valid form.
-    $null = Register-NativeHTMLKitDocumentEvent -Document $doc -Type submit -Element signup -Callback { Invoke-Submit }
-    $null = Register-NativeHTMLKitDocumentEvent -Document $doc -Type click -Element clear -Callback {
-        $null = Reset-NativeHTMLKitForm -Document $doc -Form signup
-        foreach ($field in $script:fields) { Set-FieldError $field '' }
-        Set-NativeHTMLKitDocumentText -Document $doc -Element status -Text ''
-    }
+    # Re-check the cross-field rule whenever either password changes.
+    $null = Register-NativeHTMLKitDocumentEvent -Document $doc -Type input -Element password -Callback { Update-PasswordMatch }
+    $null = Register-NativeHTMLKitDocumentEvent -Document $doc -Type input -Element confirm -Callback { Update-PasswordMatch }
 
     Set-NativeHTMLKitReady -Application $app
 
     if ($SelfTest) {
-        function Wait-Events { for ($i = 0; $i -lt 10; $i++) { $null = Wait-NativeHTMLKit -Application $app -TimeoutMilliseconds 30 } }
-        # 1. Native constraints: an empty required field blocks the submit event entirely.
-        $result = Submit-NativeHTMLKitForm -Document $doc -Form signup
+        function Wait-Until([scriptblock]$Condition) {
+            for ($i = 0; $i -lt 100; $i++) {
+                if (& $Condition) { return $true }
+                $null = Wait-NativeHTMLKit -Application $app -TimeoutMilliseconds 20
+            }
+            return [bool](& $Condition)
+        }
+        function Get-Count([string]$Selector) { return (Find-NativeHTMLKitElement -Document $doc -Selector $Selector).matched_nodes }
+        # 1. Empty form: native constraints block 'submit' and list one error per control. Core 1.0.3
+        #    in headless test mode may not report the required checkbox ('terms'); a desktop host does.
+        $result = Invoke-SignupSubmit
         if ($result.submitted) { throw 'an empty form must not submit' }
-        # 2. Natively valid, but PowerShell rules fail.
-        Set-NativeHTMLKitDocumentValue -Document $doc -Element username -Value 'admin'
-        Set-NativeHTMLKitDocumentValue -Document $doc -Element email -Value 'ada@example.com'
-        $result = Submit-NativeHTMLKitForm -Document $doc -Form signup
-        if (-not $result.submitted) { throw 'a natively valid form must submit' }
-        Wait-Events
-        $status = Get-NativeHTMLKitDocumentText -Document $doc -Element status
-        if ($status -ne 'Please correct 4 field(s).') { throw "unexpected status: $status" }
-        if ((Get-NativeHTMLKitFocusedElement -Document $doc).element -ne 'username') { throw 'focus should move to the first invalid field' }
-        # 3. Fix everything.
-        Set-NativeHTMLKitDocumentValue -Document $doc -Element username -Value 'ada.lovelace'
+        if (-not (Wait-Until { $script:errors.Count -eq 6 -or $script:errors.Count -eq 7 })) { throw "unexpected errors: $($script:errors -join ' | ')" }
+        if (-not (Wait-Until { (Get-Count '#errors li') -eq $script:errors.Count })) { throw 'error summary not rendered' }
+        # 2. Natively valid, but the passwords differ: the custom validity blocks the submit.
+        Set-NativeHTMLKitDocumentValue -Document $doc -Element name -Value 'Ada <Lovelace>'
         Set-NativeHTMLKitDocumentValue -Document $doc -Element email -Value 'ada@example.org'
-        Set-NativeHTMLKitSelectedValues -Document $doc -Element team -Values @('Security')
+        Set-NativeHTMLKitDocumentValue -Document $doc -Element password -Value 'correct horse'
+        Set-NativeHTMLKitDocumentValue -Document $doc -Element confirm -Value 'wrong horse'
+        Set-NativeHTMLKitDocumentValue -Document $doc -Element age -Value '36'
+        Set-NativeHTMLKitSelectedValues -Document $doc -Element country -Values @('fr')
         Set-NativeHTMLKitChecked -Document $doc -Element terms -Checked $true
-        $null = Submit-NativeHTMLKitForm -Document $doc -Form signup
-        Wait-Events
-        $status = Get-NativeHTMLKitDocumentText -Document $doc -Element status
-        if ($status -ne 'Request for ada.lovelace (Security) recorded.') { throw "unexpected status: $status" }
-        if (Get-NativeHTMLKitDocumentText -Document $doc -Element username-error) { throw 'error text should be cleared' }
+        $result = Invoke-SignupSubmit
+        if ($result.submitted -or -not (Wait-Until { $script:errors.Count -eq 1 -and $script:errors[0] -eq "Repeat password: $mismatch" })) {
+            throw "a password mismatch must block: $($script:errors -join ' | ')"
+        }
+        # 3. Valid, with two of the repeated 'topic' checkboxes checked.
+        Set-NativeHTMLKitDocumentValue -Document $doc -Element confirm -Value 'correct horse'
+        foreach ($topic in @((Get-NativeHTMLKitNodes -Document $doc -Selector 'input[name=topic]').nodes)[0..1]) {
+            Invoke-NativeHTMLKitNodeBatch -Document $doc -Operations @(@{ op = 'set_attribute'; node = $topic.node; name = 'checked'; value = '' })
+        }
+        $result = Invoke-SignupSubmit
+        if (-not $result.submitted) { throw 'a valid form must submit' }
+        if (-not (Wait-Until { $script:accounts.Count -eq 1 -and (Get-NativeHTMLKitValue -Document $doc -Element name) -eq '' })) { throw 'account not recorded' }
+        $account = $script:accounts[0]
+        if ($account.name -ne 'Ada <Lovelace>' -or $account.country -ne 'fr' -or (@($account.topics) -join ',') -ne 'news,releases') {
+            throw "unexpected form data: $($account | ConvertTo-Json -Compress)"
+        }
+        if (-not (Get-NativeHTMLKitDocumentText -Document $doc -Element result).StartsWith('Welcome, Ada <Lovelace>!') -or (Get-Count '#result Lovelace') -ne 0) {
+            throw 'the result must show the name as encoded text'
+        }
+        if ((Get-NativeHTMLKitValue -Document $doc -Element name) -ne '') { throw 'the form should be reset after success' }
         [Console]::Out.WriteLine('SELFTEST PASS 03-form-validation')
         $null = Request-NativeHTMLKitQuit -Application $app
     }

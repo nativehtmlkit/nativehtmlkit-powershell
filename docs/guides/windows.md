@@ -1,7 +1,7 @@
 # How to use several windows
 
 Reference: [windows](../reference/windows.md). Example:
-[08-multi-window.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/08-multi-window.ps1) (a notes app with one window per note).
+[08-multi-window.ps1](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/08-multi-window.ps1) (a window manager: note windows listed, renamed, resized and closed from a main window).
 
 ## Each window has its own document
 
@@ -50,18 +50,27 @@ Register-NativeHTMLKitNotification -Application $app -Method 'window.event' -Cal
     param($params)
     if ($params.type -eq 'closed' -and $state.Notes.ContainsKey($params.window_id)) {
         $state.Notes.Remove($params.window_id)
-        Update-NoteList
+        Update-WindowTable $state
     }
 }
 ```
 
 - When the user closes the **last** window, the host shuts the app down. To make one window the
-  "main" window whose close quits the app (asking the quit policy), turn its close into a quit:
+  "main" window whose close quits the app even while other windows are open, request a quit
+  when its `closed` event arrives (the quit closes every remaining window). There is one
+  callback per notification method, so this goes into the same `window.event` callback:
 
 ```powershell
-Set-NativeHTMLKitBeforeClose -Window $main -Callback {
-    $null = Request-NativeHTMLKitQuit -Application $app
-    $false            # the quit, if accepted, closes every window
+Register-NativeHTMLKitNotification -Application $app -Method 'window.event' -Callback {
+    param($params)
+    if ($params.type -eq 'closed' -and $params.window_id -eq $main.Id) {
+        $null = Request-NativeHTMLKitQuit -Application $app
+        return
+    }
+    if ($params.type -eq 'closed' -and $state.Notes.ContainsKey($params.window_id)) {
+        $state.Notes.Remove($params.window_id)
+        Update-WindowTable $state
+    }
 }
 ```
 

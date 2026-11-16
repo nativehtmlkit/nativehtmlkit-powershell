@@ -1,169 +1,269 @@
-# 08-multi-window.ps1 - a notes app: one main window that lists notes, one window per note.
+﻿# 08-multi-window.ps1 - a window manager: open note windows and inspect, rename, resize and
+# close them from a main window.
 #
-# Teaches: several windows each with its own document and handlers, per-window state in a
-# hashtable, callbacks created inside a function with .GetNewClosure() (and why $script:
-# must not be used inside such closures), a close policy that vetoes closing a note with
-# unsaved changes (Set-NativeHTMLKitBeforeClose), window.event notifications for windows the
-# user closed, and Get-NativeHTMLKitWindowList.
+# Teaches: several windows in one application, each with its own document and handlers;
+# Get-NativeHTMLKitWindow / Set-NativeHTMLKitWindow and the live window list; the
+# window.event notification (close_requested, closed, resized, focused, ...); per-window
+# state in a hashtable with callbacks created inside a function by .GetNewClosure() (and why
+# $script: must not be used inside such closures); Set-NativeHTMLKitBeforeClose vetoing the
+# close of a note with unsaved changes; "closing the main window quits the app" even while
+# other windows are open; NativeHTMLKit.RpcException from window operations.
 #
 # Run:  pwsh -File ./08-multi-window.ps1     (or powershell.exe -NoProfile -File .\08-multi-window.ps1)
-# -SelfTest opens, edits and closes note windows through the public API and quits.
+# Platform note: Wayland compositors own window placement and focus, so position/focus requests
+# are refused there (RpcException code -32001); size, title, maximize and close work everywhere.
+# -SelfTest opens, renames, resizes and closes note windows through the public API, checks the
+# close vetoes, closes the main window and expects the application to quit.
 param([switch]$SelfTest)
 $ErrorActionPreference = 'Stop'
 Import-Module NativeHTMLKit
 
-$app = Start-NativeHTMLKitScript -Name 'Notes' -MaxWindows 12
-try {
-    $main = New-NativeHTMLKitWindow -Application $app -Title 'Notes' -Width 420 -Height 480
-    $mainDoc = Open-NativeHTMLKitHtml -Window $main -Html @'
+$inspectorHtml = @'
 <!doctype html>
-<html><head><style>
-  body { font-family: system-ui, sans-serif; margin: 20px; }
-  ul { padding-left: 18px; } li { margin: 4px 0; }
-  .muted { color: #666; font-size: 13px; }
+<html><head><meta charset="utf-8"><style>
+  body { margin:0; padding:18px 22px; font:14px sans-serif; background:#f4f5f8; color:#1e2430; }
+  h1 { font-size:20px; margin:0 0 12px; }
+  .bar { display:flex; gap:8px; margin-bottom:12px; }
+  input { padding:6px; border:1px solid #c2c8d4; border-radius:5px; }
+  button { padding:6px 10px; border:1px solid #aab3c3; border-radius:5px; background:#fff; cursor:pointer; }
+  table { width:100%; border-collapse:collapse; background:#fff; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid #e1e4ea; }
+  td.actions button { padding:3px 7px; font-size:12px; }
+  #events { font:12px monospace; color:#596273; max-height:120px; overflow:auto; }
 </style></head>
 <body>
-  <button id="new">New note</button>
-  <h2>Open notes</h2>
-  <ul id="notes"></ul>
-  <p class="muted" id="count"></p>
+  <h1>Windows</h1>
+  <div class="bar">
+    <button id="new-note">New note window</button>
+    <input id="rename-to" type="text" placeholder="New title for Rename">
+  </div>
+  <table><thead><tr><th>ID</th><th>Title</th><th>Size</th><th>State</th><th></th></tr></thead>
+    <tbody id="rows"></tbody></table>
+  <h2>Window events</h2>
+  <div id="events"></div>
+  <p id="status"></p>
 </body></html>
 '@
 
+$noteHtml = @'
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+  body { margin:0; font:14px sans-serif; display:flex; flex-direction:column; height:100vh; background:#fffbea; }
+  #warning { display:none; padding:8px 12px; background:#ffe2b8; }
+  #warning.shown { display:block; }
+  textarea { flex:1; border:0; padding:12px; background:transparent; font:14px sans-serif; resize:none; }
+  footer { padding:6px 12px; display:flex; gap:8px; align-items:center; color:#6f6440; }
+  button { padding:4px 10px; }
+</style></head>
+<body>
+  <div id="warning">Unsaved changes. <button id="discard">Discard and close</button></div>
+  <textarea id="text" placeholder="Type a note…"></textarea>
+  <footer><button id="save">Save</button><span id="note-status">Saved</span></footer>
+</body></html>
+'@
+
+$app = Start-NativeHTMLKitScript -Name 'Window manager'
+try {
+    $main = New-NativeHTMLKitWindow -Application $app -Title 'Window manager' -Width 760 -Height 520
+    $mainDoc = Open-NativeHTMLKitHtml -Window $main -Html $inspectorHtml
+
     # One shared, mutable state object. Closures capture the reference, so every window's
     # callbacks see the same notes; $script: variables would NOT work inside .GetNewClosure().
-    $state = @{ Notes = @{}; Next = 1; App = $app; MainDoc = $mainDoc }
+    # Notes keeps insertion order, so the table lists windows in the order they were opened.
+    $state = @{ App = $app; Main = $main; MainDoc = $mainDoc; Notes = [ordered]@{}; Next = 1; NoteHtml = $noteHtml }
 
-    function Update-NoteList {
-        param($State)
-        $html = New-Object System.Text.StringBuilder
-        foreach ($note in @($State.Notes.Values | Sort-Object Number)) {
-            $flag = ''
-            if ($note.Dirty) { $flag = ' (unsaved)' }
-            [void]$html.Append('<li>' + [Net.WebUtility]::HtmlEncode("Note $($note.Number): $($note.Title)$flag") + '</li>')
-        }
-        Set-NativeHTMLKitDocumentHtml -Document $State.MainDoc -Element notes -Html $html.ToString()
-        $windows = Get-NativeHTMLKitWindowList -Application $State.App   # one array object
-        Set-NativeHTMLKitDocumentText -Document $State.MainDoc -Element count -Text "$($windows.Count) window(s) open."
+    function Set-NoteDirty {
+        param($Note)
+        $Note.Dirty = $true
+        Set-NativeHTMLKitDocumentText -Document $Note.Document -Element note-status -Text 'Edited'
     }
 
     function Save-Note {
-        param($State, $Note)
-        $Note.Text = Get-NativeHTMLKitValue -Document $Note.Document -Element body
-        $Note.Title = Get-NativeHTMLKitValue -Document $Note.Document -Element title
-        if (-not $Note.Title) { $Note.Title = 'Untitled' }
+        param($Note)
+        $Note.SavedText = Get-NativeHTMLKitValue -Document $Note.Document -Element text
         $Note.Dirty = $false
-        Set-NativeHTMLKitWindow -Window $Note.Window -Title "Note $($Note.Number): $($Note.Title)" | Out-Null
-        Set-NativeHTMLKitDocumentText -Document $Note.Document -Element status -Text ('Saved at ' + (Get-Date).ToString('T'))
-        Update-NoteList $State
+        Set-NativeHTMLKitClass -Document $Note.Document -Element warning -Name shown -Remove
+        Set-NativeHTMLKitDocumentText -Document $Note.Document -Element note-status -Text 'Saved'
     }
 
-    function Set-NoteDirty {
-        param($State, $Note)
-        if ($Note.Dirty) { return }
-        $Note.Dirty = $true
-        Set-NativeHTMLKitDocumentText -Document $Note.Document -Element status -Text 'Unsaved changes'
-        Update-NoteList $State
+    function Close-NoteDiscarding {
+        param($Note)
+        $Note.Dirty = $false
+        Close-NativeHTMLKitWindow -Window $Note.Window
+    }
+
+    function Update-WindowTable {
+        param($State)
+        $rows = New-Object System.Text.StringBuilder
+        $windows = @($State.Main) + @($State.Notes.Values | ForEach-Object { $_.Window })
+        foreach ($window in $windows) {
+            try { $info = Get-NativeHTMLKitWindow -Window $window }
+            catch [NativeHTMLKit.StaleObjectException], [NativeHTMLKit.RpcException] { continue }   # closed meanwhile
+            $flags = @()
+            if ($null -ne $info.observed) {
+                foreach ($name in 'maximized', 'minimized', 'fullscreen', 'focused') {
+                    $property = $info.observed.PSObject.Properties[$name]
+                    if ($null -ne $property -and $property.Value) { $flags += $name }
+                }
+            }
+            if ($info.closing) { $flags += 'closing' }
+            $flagText = '-'
+            if ($flags.Count -gt 0) { $flagText = $flags -join ', ' }
+            $wid = [Net.WebUtility]::HtmlEncode($window.Id)
+            $actions = ''
+            if (-not [object]::ReferenceEquals($window, $State.Main)) {
+                $actions = "<button id=`"row-$wid-rename`">Rename</button>" +
+                    "<button id=`"row-$wid-grow`">640×480</button>" +
+                    "<button id=`"row-$wid-max`">Maximize</button>" +
+                    "<button id=`"row-$wid-close`">Close</button>"
+            }
+            [void]$rows.Append("<tr><td>$wid</td><td>" + [Net.WebUtility]::HtmlEncode([string]$info.title) + '</td>' +
+                "<td>$($info.width)×$($info.height)</td><td>$flagText</td>" +
+                "<td class=`"actions`">$actions</td></tr>")
+        }
+        Set-NativeHTMLKitDocumentHtml -Document $State.MainDoc -Element rows -Html $rows.ToString()
     }
 
     function New-NoteWindow {
         param($State)
         $number = $State.Next
         $State.Next++
-        $window = New-NativeHTMLKitWindow -Application $State.App -Title "Note $number" -Width 460 -Height 360
-        $document = Open-NativeHTMLKitHtml -Window $window -Html @'
-<!doctype html>
-<html><head><style>
-  body { font-family: system-ui, sans-serif; margin: 14px; display: flex; flex-direction: column; height: calc(100vh - 28px); gap: 8px; }
-  #title { font-size: 16px; padding: 4px 6px; }
-  #body { flex: 1; font: 14px/1.4 system-ui, sans-serif; padding: 6px; }
-  .row { display: flex; gap: 8px; align-items: center; }
-  #status { flex: 1; color: #666; font-size: 13px; }
-</style></head>
-<body>
-  <input id="title" placeholder="Title">
-  <textarea id="body" placeholder="Write here..."></textarea>
-  <div class="row"><span id="status" role="status">New note</span><button id="discard">Discard changes</button><button id="save">Save</button></div>
-</body></html>
-'@
-        $note = @{ Number = $number; Window = $window; Document = $document; Title = 'Untitled'; Text = ''; Dirty = $false }
+        $window = New-NativeHTMLKitWindow -Application $State.App -Title "Note $number" -Width 360 -Height 300
+        $document = Open-NativeHTMLKitHtml -Window $window -Html $State.NoteHtml
+        $note = @{ Window = $window; Document = $document; Dirty = $false; SavedText = '' }
         $State.Notes[$window.Id] = $note
 
-        # $State and $note are locals of this function: without .GetNewClosure() they would
-        # be gone (or point at another note) when the callback runs later.
-        $null = Register-NativeHTMLKitDocumentEvent -Document $document -Type input -Callback { Set-NoteDirty $State $note }.GetNewClosure()
-        $null = Register-NativeHTMLKitDocumentEvent -Document $document -Type click -Element save -Callback { Save-Note $State $note }.GetNewClosure()
-        $null = Register-NativeHTMLKitDocumentEvent -Document $document -Type click -Element discard -Callback {
-            Set-NativeHTMLKitDocumentValue -Document $note.Document -Element title -Value $note.Title
-            Set-NativeHTMLKitDocumentValue -Document $note.Document -Element body -Value $note.Text
-            $note.Dirty = $false
-            Set-NativeHTMLKitDocumentText -Document $note.Document -Element status -Text 'Changes discarded'
-            Update-NoteList $State
-        }.GetNewClosure()
+        # $note is a local of this function: without .GetNewClosure() it would be gone (or
+        # point at another note) when the callback runs later.
+        $null = Register-NativeHTMLKitDocumentEvent -Document $document -Type input -Element text -Callback { Set-NoteDirty $note }.GetNewClosure()
+        $null = Register-NativeHTMLKitDocumentEvent -Document $document -Type click -Element save -Callback { Save-Note $note }.GetNewClosure()
+        $null = Register-NativeHTMLKitDocumentEvent -Document $document -Type click -Element discard -Callback { Close-NoteDiscarding $note }.GetNewClosure()
 
-        # The last output decides: $true closes, $false keeps the window open.
+        # Asked by the host before the window closes. The last output decides: $true closes,
+        # $false keeps the window open.
         Set-NativeHTMLKitBeforeClose -Window $window -Callback {
             if ($note.Dirty) {
-                Set-NativeHTMLKitDocumentText -Document $note.Document -Element status -Text 'Save or discard your changes before closing.'
+                Set-NativeHTMLKitClass -Document $note.Document -Element warning -Name shown
                 $false
                 return
             }
             $true
         }.GetNewClosure()
-        Update-NoteList $State
+        Update-WindowTable $State
         return $note
     }
 
-    # A note window that closed (user, or Close-NativeHTMLKitWindow) leaves the list.
-    Register-NativeHTMLKitNotification -Application $app -Method 'window.event' -Callback {
-        param($params)
-        if ($params.type -ne 'closed' -or -not $state.Notes.ContainsKey($params.window_id)) { return }
-        $state.Notes.Remove($params.window_id)
-        Update-NoteList $state
+    function Invoke-RowAction {
+        param($State, [string]$Element)
+        $parts = $Element.Split('-')
+        if ($parts.Count -ne 3 -or -not $State.Notes.Contains($parts[1])) { return }
+        $window = $State.Notes[$parts[1]].Window
+        $action = $parts[2]
+        try {
+            switch ($action) {
+                'rename' {
+                    $title = (Get-NativeHTMLKitValue -Document $State.MainDoc -Element rename-to).Trim()
+                    if ($title) { $null = Set-NativeHTMLKitWindow -Window $window -Title $title }
+                }
+                'grow' { $null = Set-NativeHTMLKitWindow -Window $window -Width 640 -Height 480 }
+                'max' {
+                    $observed = (Get-NativeHTMLKitWindow -Window $window).observed
+                    $maximized = $false
+                    if ($null -ne $observed -and $null -ne $observed.PSObject.Properties['maximized']) { $maximized = [bool]$observed.maximized }
+                    $null = Set-NativeHTMLKitWindow -Window $window -Maximized (-not $maximized)
+                }
+                'close' { Close-NativeHTMLKitWindow -Window $window }   # the note may veto (unsaved changes)
+            }
+        } catch [NativeHTMLKit.RpcException] {
+            Set-NativeHTMLKitDocumentText -Document $State.MainDoc -Element status -Text "$action refused by the platform (code $($_.Exception.Code))."
+        }
+        Update-WindowTable $State
     }
 
-    # Closing the main window quits the app (and so closes every note).
-    Set-NativeHTMLKitBeforeClose -Window $main -Callback {
-        $null = Request-NativeHTMLKitQuit -Application $app
-        $false
+    $null = Register-NativeHTMLKitDocumentEvent -Document $mainDoc -Type click -Element new-note -Callback { $null = New-NoteWindow $state }
+    $null = Register-NativeHTMLKitDocumentEvent -Document $mainDoc -Type click -Element rows -Callback {
+        param($evt)
+        Invoke-RowAction $state ([string]$evt.element)
     }
-    Set-NativeHTMLKitBeforeQuit -Application $app -Callback {
+
+    Set-NativeHTMLKitBeforeClose -Window $main -Callback {
         $dirty = @($state.Notes.Values | Where-Object { $_.Dirty }).Count
         if ($dirty -gt 0) {
-            Set-NativeHTMLKitDocumentText -Document $mainDoc -Element count -Text "$dirty note(s) have unsaved changes; save or discard them first."
+            Set-NativeHTMLKitDocumentText -Document $mainDoc -Element status -Text "$dirty note(s) have unsaved changes; save or close them first."
             $false
             return
         }
         $true
     }
 
-    $null = Register-NativeHTMLKitDocumentEvent -Document $mainDoc -Type click -Element new -Callback { $null = New-NoteWindow $state }
-    Update-NoteList $state
+    Register-NativeHTMLKitNotification -Application $app -Method 'window.event' -Callback {
+        param($params)
+        $kind = [string]$params.type
+        $wid = [string]$params.window_id
+        if ($kind -eq 'closed' -and $wid -eq $main.Id) {
+            # The SDK has already retired the main window's handles; just quit, which closes
+            # the remaining note windows too.
+            $null = Request-NativeHTMLKitQuit -Application $app
+            return
+        }
+        if ($kind -eq 'closed' -and $state.Notes.Contains($wid)) { $state.Notes.Remove($wid) }
+        try {
+            Set-NativeHTMLKitDocumentHtml -Document $mainDoc -Element events -Position beforeend -Html ('<div>' + [Net.WebUtility]::HtmlEncode($wid) + ': ' + [Net.WebUtility]::HtmlEncode($kind) + '</div>')
+            $null = Invoke-NativeHTMLKitDocumentCommand -Document $mainDoc -Operation trim_children -Parameters @{ element = 'events'; keep = 30 }   # keep the 30 newest entries
+            if ($kind -in @('closed', 'resized', 'close_requested', 'focused')) { Update-WindowTable $state }
+        } catch [NativeHTMLKit.StaleObjectException], [NativeHTMLKit.DisconnectedException], [NativeHTMLKit.RpcException] {
+            $null = $_                                       # the application is shutting down
+        }
+    }
+
+    Update-WindowTable $state
     Set-NativeHTMLKitReady -Application $app
 
     if ($SelfTest) {
-        function Wait-Events { for ($i = 0; $i -lt 10; $i++) { $null = Wait-NativeHTMLKit -Application $app -TimeoutMilliseconds 30 } }
+        # Window operations run after Set-NativeHTMLKitReady: before it, closing the LAST usable
+        # window cancels start-up.
+        function Wait-For([scriptblock]$Condition, [int]$TimeoutMilliseconds = 5000) {
+            $clock = [Diagnostics.Stopwatch]::StartNew()
+            while (-not (& $Condition)) {
+                if ($clock.ElapsedMilliseconds -gt $TimeoutMilliseconds) { return $false }
+                $null = Wait-NativeHTMLKit -Application $app -TimeoutMilliseconds 50
+            }
+            return $true
+        }
+        function Assert-Check([string]$Name, [bool]$Ok) { if (-not $Ok) { throw "check failed: $Name" } }
+        function Get-RowCount { return (Find-NativeHTMLKitElement -Document $mainDoc -Selector '#rows tr').matched_nodes }
+        function Test-ShutdownRequested { return [bool](Get-NativeHTMLKitDiagnosticReport -Application $app).Connection.ShutdownRequested }
+
         $first = New-NoteWindow $state
         $second = New-NoteWindow $state
-        if ((Get-NativeHTMLKitWindowList -Application $app).Count -ne 3) { throw 'expected three windows' }
-        Set-NativeHTMLKitDocumentValue -Document $second.Document -Element title -Value 'Shopping'
-        Set-NoteDirty $state $second
-        Close-NativeHTMLKitWindow -Window $second.Window
-        Wait-Events
-        if ($second.Window.Closed) { throw 'a note with unsaved changes must stay open' }
-        if ((Get-NativeHTMLKitDocumentText -Document $second.Document -Element status) -notmatch '^Save or discard') { throw 'veto message missing' }
-        $null = Request-NativeHTMLKitQuit -Application $app
-        Wait-Events
-        if ((Get-NativeHTMLKitDocumentText -Document $mainDoc -Element count) -notmatch 'unsaved changes') { throw 'quit veto message missing' }
-        Save-Note $state $second
-        Close-NativeHTMLKitWindow -Window $second.Window
-        Close-NativeHTMLKitWindow -Window $first.Window
-        Wait-Events
-        if (-not $second.Window.Closed -or -not $first.Window.Closed) { throw 'saved notes should close' }
-        if ($state.Notes.Count -ne 0) { throw 'closed notes should leave the list' }
-        if ((Get-NativeHTMLKitDocumentText -Document $mainDoc -Element count) -ne '1 window(s) open.') { throw 'window count not updated' }
+        Assert-Check 'windows.three_listed' ((Get-RowCount) -eq 3)
+        $list = Get-NativeHTMLKitWindowList -Application $app   # one array object
+        Assert-Check 'windows.host_window_list' ($list.Count -eq 3)
+        Set-NativeHTMLKitDocumentValue -Document $mainDoc -Element rename-to -Value 'Shopping <list>'
+        Invoke-RowAction $state "row-$($first.Window.Id)-rename"
+        Assert-Check 'windows.rename_sets_title' ((Get-NativeHTMLKitWindow -Window $first.Window).title -eq 'Shopping <list>')
+        Assert-Check 'windows.title_escaped_in_table' ((Get-NativeHTMLKitDocumentText -Document $mainDoc -Element rows).Contains('Shopping <list>'))
+        Invoke-RowAction $state "row-$($first.Window.Id)-grow"
+        $info = Get-NativeHTMLKitWindow -Window $first.Window
+        Assert-Check 'windows.resize' ($info.width -eq 640 -and $info.height -eq 480)
+        Invoke-RowAction $state "row-$($first.Window.Id)-max"   # granted, or reported in #status
+        $status = Get-NativeHTMLKitDocumentText -Document $mainDoc -Element status
+        Assert-Check 'windows.maximize_handled' ($status -eq '' -or $status -match '^max refused by the platform \(code -?\d+\)\.$')
+        Set-NoteDirty $second
+        Invoke-RowAction $state "row-$($second.Window.Id)-close"
+        Assert-Check 'windows.dirty_note_vetoes_close' (Wait-For { [string](Invoke-NativeHTMLKitDocumentCommand -Document $second.Document -Operation get_attribute -Parameters @{ element = 'warning'; name = 'class' }).value -match '\bshown\b' })
+        Assert-Check 'windows.dirty_note_still_open' (-not $second.Window.Closed)
+        Close-NoteDiscarding $second
+        Assert-Check 'windows.discard_closes' (Wait-For { $second.Window.Closed })
+        Assert-Check 'windows.table_updated_on_closed' (Wait-For { (Get-RowCount) -eq 2 })
+        Assert-Check 'windows.events_logged' ((Get-NativeHTMLKitDocumentText -Document $mainDoc -Element events).Contains('close_requested'))
+        Set-NoteDirty $first
+        Close-NativeHTMLKitWindow -Window $main
+        Assert-Check 'windows.main_close_blocked_by_dirty_note' ((Wait-For { (Get-NativeHTMLKitDocumentText -Document $mainDoc -Element status).Contains('unsaved changes') }) -and -not $main.Closed)
+        Save-Note $first
+        Close-NativeHTMLKitWindow -Window $main   # main closed with a note open -> Request-NativeHTMLKitQuit
+        Assert-Check 'windows.main_close_quits_app' (Wait-For { Test-ShutdownRequested } 10000)
         [Console]::Out.WriteLine('SELFTEST PASS 08-multi-window')
-        Close-NativeHTMLKitWindow -Window $main   # the main window's policy turns this into a quit
     }
 
     Wait-NativeHTMLKit -Application $app -UntilShutdown
