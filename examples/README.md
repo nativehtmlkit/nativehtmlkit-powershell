@@ -68,3 +68,18 @@ pwsh -File ./03-form-validation.ps1 -SelfTest
 
 More complete gallery-style demos across the NativeHTMLKit project are on the
 [public site](https://github.com/nativehtmlkit/nativehtmlkit).
+
+## Screenshots
+
+Real captures on KDE Plasma 6.6 Wayland (100% scaling) with Core 1.0.3, PowerShell SDK 0.1.2 on PowerShell 7.7, taken by running each example unchanged. Windows looks the same apart from the window frame.
+
+| | |
+|---|---|
+| [01-hello](01-hello.ps1)<br>![01-hello](../docs/images/examples/ps-sdk-01-hello.png) | [02-counter](02-counter.ps1)<br>![02-counter](../docs/images/examples/ps-sdk-02-counter.png) |
+| [03-form-validation](03-form-validation.ps1)<br>![03-form-validation](../docs/images/examples/ps-sdk-03-form-validation.png) | [04-todo-list](04-todo-list.ps1)<br>![04-todo-list](../docs/images/examples/ps-sdk-04-todo-list.png) |
+| [05-process-viewer](05-process-viewer.ps1)<br>![05-process-viewer](../docs/images/examples/ps-sdk-05-process-viewer.png) | [06-log-tail](06-log-tail.ps1)<br>![06-log-tail](../docs/images/examples/ps-sdk-06-log-tail.png) |
+| [07-file-preview](07-file-preview.ps1)<br>![07-file-preview](../docs/images/examples/ps-sdk-07-file-preview.png) | [08-multi-window](08-multi-window.ps1)<br>![08-multi-window](../docs/images/examples/ps-sdk-08-multi-window.png) |
+| [09-settings-dialog](09-settings-dialog.ps1)<br>![09-settings-dialog](../docs/images/examples/ps-sdk-09-settings-dialog.png) | [10-clipboard-tool](10-clipboard-tool.ps1)<br>![10-clipboard-tool](../docs/images/examples/ps-sdk-10-clipboard-tool.png) |
+| [11-background-checksums](11-background-checksums.ps1)<br>![11-background-checksums](../docs/images/examples/ps-sdk-11-background-checksums.png) | [12-live-chart](12-live-chart.ps1)<br>![12-live-chart](../docs/images/examples/ps-sdk-12-live-chart.png) |
+| [13-keyboard-shortcuts](13-keyboard-shortcuts.ps1)<br>![13-keyboard-shortcuts](../docs/images/examples/ps-sdk-13-keyboard-shortcuts.png) | [14-diagnostics](14-diagnostics.ps1)<br>![14-diagnostics](../docs/images/examples/ps-sdk-14-diagnostics.png) |
+| [bulk-rename](bulk-rename/app.ps1)<br>![bulk-rename](../docs/images/examples/ps-sdk-bulk-rename.png) |  |
