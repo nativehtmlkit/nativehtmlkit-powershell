@@ -1,0 +1,204 @@
+# Machine-readable catalogue of the PowerShell SDK examples (NativeHTMLKit 0.1.2).
+# `id` is the parity key shared with the Python SDK; `file` is relative to examples/.
+# tests/Examples.Tests.ps1 runs every entry with -SelfTest against the real host and fails when an
+# entry has no file or an example file has no entry.
+
+[[example]]
+id = "hello"
+title = "Hello"
+summary = "The smallest complete app: a greeting form that writes untrusted text safely."
+teaches = ["application lifecycle", "Get-NativeHTMLKitValue", "Set-NativeHTMLKitDocumentText"]
+file = "01-hello.ps1"
+run = "pwsh -File 01-hello.ps1"
+guide = "lifecycle"
+language_specific = false
+
+[[example]]
+id = "counter"
+title = "Counter"
+summary = "A counter with a step selector, limits and a bounded change history."
+teaches = ["shared state", "event delegation", "Invoke-NativeHTMLKitBatch", "trim_children"]
+file = "02-counter.ps1"
+run = "pwsh -File 02-counter.ps1"
+guide = "updating-the-page"
+language_specific = false
+
+[[example]]
+id = "todo"
+title = "Todo list"
+summary = "Add, edit, complete, filter and delete tasks, saved to a JSON file."
+teaches = ["form submit", "delegated list events", "escaping user text", "keyboard editing", "atomic JSON persistence"]
+file = "04-todo-list.ps1"
+run = "pwsh -File 04-todo-list.ps1"
+guide = "events-and-callbacks"
+language_specific = false
+
+[[example]]
+id = "signup-form"
+title = "Sign-up form"
+summary = "Account request form with HTML validation, PowerShell rules and per-field errors."
+teaches = ["constraint validation", "submit events", "aria-invalid errors", "focus", "Reset-NativeHTMLKitForm"]
+file = "03-form-validation.ps1"
+run = "pwsh -File 03-form-validation.ps1"
+guide = "forms-and-validation"
+language_specific = false
+
+[[example]]
+id = "data-table"
+title = "Inventory data table"
+summary = "Searchable, sortable, paged table rendered from data, with a details pane."
+teaches = ["input/change events", "batch updates", "rendering rows safely", "Import-Csv (PowerShell extra)"]
+file = "15-data-table.ps1"
+run = "pwsh -File 15-data-table.ps1"
+guide = "updating-the-page"
+language_specific = false
+
+[[example]]
+id = "process-viewer"
+title = "Process viewer"
+summary = "Sortable, filterable table of running processes."
+teaches = ["rendering data as a table", "input event value", "sortable headers with aria-sort"]
+file = "05-process-viewer.ps1"
+run = "pwsh -File 05-process-viewer.ps1"
+guide = "updating-the-page"
+language_specific = false
+
+[[example]]
+id = "log-viewer"
+title = "Log viewer"
+summary = "Follows a growing log file with filtering, highlighting and auto-scroll."
+teaches = ["polling with background tasks", "appending lines", "trim_children", "set_scroll_follow"]
+file = "06-log-tail.ps1"
+run = "pwsh -File 06-log-tail.ps1"
+guide = "background-work"
+language_specific = false
+
+[[example]]
+id = "file-viewer"
+title = "File viewer"
+summary = "Open a file with the native dialog and preview it as text."
+teaches = ["Show-NativeHTMLKitFileDialog", "file filters", "capability check", "-32001 fallback"]
+file = "07-file-preview.ps1"
+run = "pwsh -File 07-file-preview.ps1"
+guide = "file-dialogs"
+language_specific = false
+
+[[example]]
+id = "multi-window"
+title = "Multiple windows"
+summary = "Note windows managed from a main window, with a close veto for unsaved notes."
+teaches = ["several windows", "per-window state with closures", "window.event", "close and quit policies"]
+file = "08-multi-window.ps1"
+run = "pwsh -File 08-multi-window.ps1"
+guide = "windows"
+language_specific = false
+
+[[example]]
+id = "settings-dialog"
+title = "Settings dialog"
+summary = "Settings in a modal HTML dialog, saved to JSON, with a dark-mode switch."
+teaches = ["Show-NativeHTMLKitHtmlDialog", "popovers", "Set-NativeHTMLKitEnvironment", "replaceable stylesheet"]
+file = "09-settings-dialog.ps1"
+run = "pwsh -File 09-settings-dialog.ps1"
+guide = "dialogs-and-popovers"
+language_specific = false
+
+[[example]]
+id = "clipboard-tool"
+title = "Clipboard tool"
+summary = "Text transforms with copy and paste and a fallback when no clipboard exists."
+teaches = ["Get-/Set-NativeHTMLKitClipboard", "transform functions", "error messages"]
+file = "10-clipboard-tool.ps1"
+run = "pwsh -File 10-clipboard-tool.ps1"
+guide = "clipboard-and-desktop"
+language_specific = false
+
+[[example]]
+id = "checksums"
+title = "Checksums"
+summary = "SHA-256 of every file in a folder, computed in background tasks with progress and cancel."
+teaches = ["Start-NativeHTMLKitTask", "progress in batches", "Stop-NativeHTMLKitTask", "timeouts"]
+file = "11-background-checksums.ps1"
+run = "pwsh -File 11-background-checksums.ps1"
+guide = "background-work"
+language_specific = false
+
+[[example]]
+id = "live-chart"
+title = "Live chart"
+summary = "A live line chart of memory use drawn into an RGBA bitmap."
+teaches = ["New-NativeHTMLKitLiveBitmap", "RGBA frames", "a timer from background tasks"]
+file = "12-live-chart.ps1"
+run = "pwsh -File 12-live-chart.ps1"
+guide = "live-bitmaps"
+language_specific = false
+
+[[example]]
+id = "keyboard-shortcuts"
+title = "Snippet editor"
+summary = "A snippet editor with keyboard shortcuts, Tab indentation and selection handling."
+teaches = ["keydown chords", "Set-NativeHTMLKitPreventDefault", "inserting at the caret", "selection"]
+file = "13-keyboard-shortcuts.ps1"
+run = "pwsh -File 13-keyboard-shortcuts.ps1"
+guide = "keyboard-and-focus"
+language_specific = false
+
+[[example]]
+id = "diagnostics"
+title = "About and support"
+summary = "An About/Support window: capabilities, preferences, counters and a support bundle."
+teaches = ["Get-NativeHTMLKitCapabilities", "Get-NativeHTMLKitPreferences", "Get-NativeHTMLKitDiagnostics", "Export-NativeHTMLKitSupportBundle"]
+file = "14-diagnostics.ps1"
+run = "pwsh -File 14-diagnostics.ps1"
+guide = "diagnostics-and-troubleshooting"
+language_specific = false
+
+[[example]]
+id = "dom-explorer"
+title = "DOM explorer"
+summary = "Tree view of a live DOM with selecting, editing, moving and deleting nodes."
+teaches = ["node references", "Get-NativeHTMLKitNodeChildren", "Get-NativeHTMLKitNodeInfo", "Invoke-NativeHTMLKitNodeOperation", "stale nodes"]
+file = "16-dom-explorer.ps1"
+run = "pwsh -File 16-dom-explorer.ps1"
+guide = "updating-the-page"
+language_specific = false
+
+[[example]]
+id = "focus-timer"
+title = "Focus timer"
+summary = "A countdown timer that asks before quitting while it runs."
+teaches = ["Set-NativeHTMLKitBeforeQuit", "saving after shutdown", "desktop.paths", "Request-NativeHTMLKitAttention"]
+file = "17-focus-timer.ps1"
+run = "pwsh -File 17-focus-timer.ps1"
+guide = "lifecycle"
+language_specific = false
+
+[[example]]
+id = "background-jobs"
+title = "Background jobs"
+summary = "Concurrent jobs with progress bars and cancel buttons."
+teaches = ["Start-NativeHTMLKitTask chains", "progress", "Stop-NativeHTMLKitTask", "the task limit and a queue"]
+file = "18-background-jobs.ps1"
+run = "pwsh -File 18-background-jobs.ps1"
+guide = "background-work"
+language_specific = false
+
+[[example]]
+id = "bulk-rename"
+title = "Bulk rename"
+summary = "Rename many files with find/replace, a live preview, a confirmation dialog and undo."
+teaches = ["Open-NativeHTMLKitFile with index.html and style.css", "pure planning logic", "live preview", "folder dialog fallback", "undo"]
+file = "bulk-rename/app.ps1"
+run = "pwsh -File bulk-rename/app.ps1"
+guide = "project-scaffolding"
+language_specific = false
+
+[[example]]
+id = "process-dashboard"
+title = "Process dashboard"
+summary = "Live process monitor that refreshes in the background, with filter, sort, pause and copy."
+teaches = ["Start-NativeHTMLKitTask", "updating the page in -OnCompleted", "pause/resume", "clipboard"]
+file = "process-dashboard/app.ps1"
+run = "pwsh -File process-dashboard/app.ps1"
+guide = "background-work"
+language_specific = false
