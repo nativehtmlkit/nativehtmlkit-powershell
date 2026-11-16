@@ -92,13 +92,17 @@ More complete gallery-style demos across the NativeHTMLKit project are on the
 
 ## Screenshots
 
-Real captures on KDE Plasma 6.6 Wayland (100% scaling) with Core 1.0.3, PowerShell SDK 0.1.2 on PowerShell 7.7, taken by running each example unchanged. Examples without a picture here changed after the last capture. Windows looks the same apart from the window frame.
+Real captures on KDE Plasma 6.6 Wayland (100% scaling) with Core 1.0.3 and PowerShell SDK 0.1.2 on PowerShell 7.7, taken by running each example unchanged. Windows looks the same apart from the window frame.
 
 | | |
 |---|---|
-| [01-hello](01-hello.ps1)<br>![01-hello](../docs/images/examples/ps-sdk-01-hello.png) | [02-counter](02-counter.ps1)<br>![02-counter](../docs/images/examples/ps-sdk-02-counter.png) |
-| [04-todo-list](04-todo-list.ps1)<br>![04-todo-list](../docs/images/examples/ps-sdk-04-todo-list.png) | [05-process-viewer](05-process-viewer.ps1)<br>![05-process-viewer](../docs/images/examples/ps-sdk-05-process-viewer.png) |
-| [06-log-tail](06-log-tail.ps1)<br>![06-log-tail](../docs/images/examples/ps-sdk-06-log-tail.png) | [09-settings-dialog](09-settings-dialog.ps1)<br>![09-settings-dialog](../docs/images/examples/ps-sdk-09-settings-dialog.png) |
-| [12-live-chart](12-live-chart.ps1)<br>![12-live-chart](../docs/images/examples/ps-sdk-12-live-chart.png) | [13-keyboard-shortcuts](13-keyboard-shortcuts.ps1)<br>![13-keyboard-shortcuts](../docs/images/examples/ps-sdk-13-keyboard-shortcuts.png) |
-| [14-diagnostics](14-diagnostics.ps1)<br>![14-diagnostics](../docs/images/examples/ps-sdk-14-diagnostics.png) | [bulk-rename](bulk-rename/app.ps1)<br>![bulk-rename](../docs/images/examples/ps-sdk-bulk-rename.png) |
-| [process-dashboard](process-dashboard/app.ps1)<br>![process-dashboard](../docs/images/examples/ps-sdk-process-dashboard.png) |  |
+| [Hello](01-hello.ps1)<br>![Hello](../docs/images/examples/ps-sdk-01-hello.png) | [Counter](02-counter.ps1)<br>![Counter](../docs/images/examples/ps-sdk-02-counter.png) |
+| [Todo list](04-todo-list.ps1)<br>![Todo list](../docs/images/examples/ps-sdk-04-todo-list.png) | [Sign-up form](03-form-validation.ps1)<br>![Sign-up form](../docs/images/examples/ps-sdk-03-form-validation.png) |
+| [Inventory data table](15-data-table.ps1)<br>![Inventory data table](../docs/images/examples/ps-sdk-15-data-table.png) | [Process viewer](05-process-viewer.ps1)<br>![Process viewer](../docs/images/examples/ps-sdk-05-process-viewer.png) |
+| [Log viewer](06-log-tail.ps1)<br>![Log viewer](../docs/images/examples/ps-sdk-06-log-tail.png) | [File viewer](07-file-preview.ps1)<br>![File viewer](../docs/images/examples/ps-sdk-07-file-preview.png) |
+| [Multiple windows](08-multi-window.ps1)<br>![Multiple windows](../docs/images/examples/ps-sdk-08-multi-window.png) | [Settings dialog](09-settings-dialog.ps1)<br>![Settings dialog](../docs/images/examples/ps-sdk-09-settings-dialog.png) |
+| [Clipboard tool](10-clipboard-tool.ps1)<br>![Clipboard tool](../docs/images/examples/ps-sdk-10-clipboard-tool.png) | [Checksums](11-background-checksums.ps1)<br>![Checksums](../docs/images/examples/ps-sdk-11-background-checksums.png) |
+| [Live chart](12-live-chart.ps1)<br>![Live chart](../docs/images/examples/ps-sdk-12-live-chart.png) | [Snippet editor](13-keyboard-shortcuts.ps1)<br>![Snippet editor](../docs/images/examples/ps-sdk-13-keyboard-shortcuts.png) |
+| [About and support](14-diagnostics.ps1)<br>![About and support](../docs/images/examples/ps-sdk-14-diagnostics.png) | [DOM explorer](16-dom-explorer.ps1)<br>![DOM explorer](../docs/images/examples/ps-sdk-16-dom-explorer.png) |
+| [Focus timer](17-focus-timer.ps1)<br>![Focus timer](../docs/images/examples/ps-sdk-17-focus-timer.png) | [Background jobs](18-background-jobs.ps1)<br>![Background jobs](../docs/images/examples/ps-sdk-18-background-jobs.png) |
+| [Bulk rename](bulk-rename/app.ps1)<br>![Bulk rename](../docs/images/examples/ps-sdk-bulk-rename.png) | [Process dashboard](process-dashboard/app.ps1)<br>![Process dashboard](../docs/images/examples/ps-sdk-process-dashboard.png) |
