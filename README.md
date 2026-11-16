@@ -2,7 +2,7 @@
 
 **Real native HTML/CSS desktop windows driven by PowerShell scripts.** No browser, JavaScript, local HTTP server or Python runtime.
 
-[PowerShell Gallery](https://www.powershellgallery.com/packages/NativeHTMLKit) · [Public guides](https://github.com/nativehtmlkit/nativehtmlkit) · [API reference](docs/API.md)
+[PowerShell Gallery](https://www.powershellgallery.com/packages/NativeHTMLKit) · [Cmdlet reference](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/docs/API.md) · [Tutorial](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/docs/tutorials/bulk-rename.md) · [Examples](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/README.md) · [Project site](https://github.com/nativehtmlkit/nativehtmlkit)
 
 ## Install
 
@@ -34,24 +34,56 @@ try {
 
 Save as `app.ps1` and run `pwsh -File app.ps1` (or `powershell.exe -File app.ps1` on Windows). `Start-NativeHTMLKitScript` invokes the app script under a supervised host/backend arrangement; keep side effects below that call.
 
+## How it works in one paragraph
+
+The bundled native host draws the windows and renders HTML/CSS; your script is its backend. You
+create windows, load HTML, subscribe PowerShell scriptblocks to DOM events (`click`, `input`,
+`submit`, `keydown`, ...) and change the document by element id (`Set-NativeHTMLKitDocumentText`,
+`Set-NativeHTMLKitDocumentHtml`, `Invoke-NativeHTMLKitBatch`). Callbacks run on your script's
+runspace while `Wait-NativeHTMLKit` pumps events; slow work goes to `Start-NativeHTMLKitTask`.
+[Architecture](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/docs/ARCHITECTURE.md).
+
 ## Main capabilities
 
-- Windows, native dialogs and lifecycle hooks.
-- Document events and mutations, forms and selection.
+- Windows, native file dialogs, close and quit policies, several windows per app.
+- Document events with delegation, DOM updates and atomic batches, forms with native validation,
+  HTML `<dialog>` and popovers, stylesheets, colour-scheme overrides, selection and editing.
 - Clipboard, accessibility integration, diagnostics and live RGBA bitmap updates.
 - Background tasks with explicit owner-runspace callbacks.
+- `New-NativeHTMLKitProject` scaffolding and a coding-agent skill (`Install-NativeHTMLKitSkill`).
 
 For declarative layouts and reactive state use the separate [NativeHTMLKit.UI](https://github.com/nativehtmlkit/nativehtmlkit_ui) module. The SDK is not a UI component library.
 
-## Continue
+## Examples
+
+Fifteen runnable apps, each verified against the real host on Linux and Windows (PowerShell 7 and Windows PowerShell 5.1):
+[hello](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/01-hello.ps1),
+[counter](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/02-counter.ps1),
+[form validation](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/03-form-validation.ps1),
+[todo list](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/04-todo-list.ps1),
+[process viewer](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/05-process-viewer.ps1),
+[log tail](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/06-log-tail.ps1),
+[file preview](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/07-file-preview.ps1),
+[multi-window notes](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/08-multi-window.ps1),
+[settings dialog](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/09-settings-dialog.ps1),
+[clipboard tool](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/10-clipboard-tool.ps1),
+[background checksums](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/11-background-checksums.ps1),
+[live chart](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/12-live-chart.ps1),
+[keyboard shortcuts](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/13-keyboard-shortcuts.ps1),
+[diagnostics](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/examples/14-diagnostics.ps1) and the
+[bulk-rename](https://github.com/nativehtmlkit/nativehtmlkit-powershell/tree/main/examples/bulk-rename) tutorial app.
+
+## Documentation
 
 | Documentation | What it covers |
 |---|---|
-| [API](docs/API.md) | Cmdlet groups, parameters, lifecycle |
-| [Architecture](docs/ARCHITECTURE.md) | Host, PowerShell script lifecycle, runspaces |
-| [Examples](docs/EXAMPLES.md) | Working gallery and modules |
-| [Verification](docs/BUILD.md) | Local test and package pipeline |
-| [Skills](NativeHTMLKit/skills/nativehtmlkit-powershell/SKILL.md) | AI agent use |
+| [Tutorial](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/docs/tutorials/bulk-rename.md) | Build a bulk file-rename tool step by step |
+| [Guides](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/docs/API.md#guides) | Lifecycle, events and closures, DOM updates, forms, windows, dialogs, clipboard, bitmaps, tasks, diagnostics, scaffolding, Windows PowerShell 5.1, security |
+| [Cmdlet reference](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/docs/API.md) | All 88 cmdlets and aliases: syntax, parameters, outputs, errors |
+| [Architecture](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/docs/ARCHITECTURE.md) | Host, launcher/backend, runspaces, handles |
+| [Examples](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/docs/EXAMPLES.md) | Examples by task |
+| [Verification](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/docs/BUILD.md) | Local test and package pipeline |
+| [Skills](https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/NativeHTMLKit/skills/nativehtmlkit-powershell/SKILL.md) | AI agent use |
 
 **Module version:** 0.1.2 (bundles NativeHTMLKit Core 1.0.3, public wire protocol v1). 0.1.2 refreshes the Gallery description and documentation; the cmdlet API is unchanged from 0.1.1.
 
