@@ -146,7 +146,8 @@ Describe 'Example catalog' {
         $guides = @(Get-ChildItem -LiteralPath (Join-Path (Split-Path -Parent $PSScriptRoot) 'docs/guides') -Filter '*.md' | ForEach-Object { $_.BaseName })
         foreach ($entry in $script:Catalog) {
             foreach ($key in 'id', 'title', 'summary', 'teaches', 'file', 'run', 'language_specific') { $entry.ContainsKey($key) | Should -BeTrue -Because "$($entry.id) needs '$key'" }
-            $entry.run | Should -Be ('pwsh -File ' + $entry.file)
+            # The command, optionally followed by its arguments (FILE, [-Folder FOLDER], ...).
+            $entry.run | Should -Match ('^pwsh -File ' + [regex]::Escape($entry.file) + '( |$)')
             if ($entry.ContainsKey('guide')) { $guides | Should -Contain $entry.guide -Because "guide of $($entry.id)" }
             if (-not $entry.language_specific) { $canonical | Should -Contain $entry.id }
         }

@@ -69,7 +69,7 @@ title = "Log viewer"
 summary = "Follows a growing log file with highlighting, pause, clear and auto-scroll."
 teaches = ["polling with background tasks", "appending lines", "trim_children", "set_scroll_follow"]
 file = "06-log-tail.ps1"
-run = "pwsh -File 06-log-tail.ps1"
+run = "pwsh -File 06-log-tail.ps1 -Path FILE"
 guide = "background-work"
 language_specific = false
 
@@ -79,7 +79,7 @@ title = "File viewer"
 summary = "Text file viewer and editor with native Open, Save As and Choose Folder dialogs."
 teaches = ["Show-NativeHTMLKitFileDialog (open, save, folder)", "file filters and start directory", "dialog result", "-32001 fallback", "file content as a textarea value"]
 file = "07-file-preview.ps1"
-run = "pwsh -File 07-file-preview.ps1"
+run = "pwsh -File 07-file-preview.ps1 [-Path FILE]"
 guide = "file-dialogs"
 language_specific = false
 
@@ -99,7 +99,7 @@ title = "Settings dialog"
 summary = "Settings in a modal HTML dialog, saved to JSON: colour scheme, text size and reduced motion."
 teaches = ["Show-NativeHTMLKitHtmlDialog", "popovers", "Set-NativeHTMLKitEnvironment", "replaceable stylesheet"]
 file = "09-settings-dialog.ps1"
-run = "pwsh -File 09-settings-dialog.ps1"
+run = "pwsh -File 09-settings-dialog.ps1 [-SettingsPath FILE]"
 guide = "dialogs-and-popovers"
 language_specific = false
 
@@ -119,7 +119,7 @@ title = "Checksums"
 summary = "SHA-256 of every file in a folder, computed in the background with progress, cancel and a quit warning."
 teaches = ["Start-NativeHTMLKitTask", "throttled progress in batches", "Stop-NativeHTMLKitTask", "Set-NativeHTMLKitBeforeQuit"]
 file = "11-background-checksums.ps1"
-run = "pwsh -File 11-background-checksums.ps1"
+run = "pwsh -File 11-background-checksums.ps1 [-Folder FOLDER]"
 guide = "background-work"
 language_specific = false
 

@@ -26,7 +26,7 @@ Get-NativeHTMLKitCapabilities [-Application] <Object> [<CommonParameters>]
 `platform` (`linux`, `windows`), `max_windows`, `max_documents`, `renderer` (`cpu`), `css_profile`,
 `window_positioning`, `limits` (`frame_bytes`, `pending_requests`, ...), the service booleans
 `clipboard_text`, `file_dialogs`, `external_open`, `drag_drop`, `ime`, `accessibility` (enabled API
-surfaces; `$false` in headless mode), `features` (per-feature `supported`/`available` detail; `null`
+surfaces; `$false` in headless mode), `features` (per-feature `implemented`/`available` detail; `null`
 means not observed) and `native_preferences`.
 
 ```powershell

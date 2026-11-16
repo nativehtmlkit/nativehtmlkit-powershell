@@ -44,6 +44,25 @@ try {
 </body></html>
 '@
 
+    # Top-level capability flag -> its entry in $caps.features (the host names drops differently).
+    $script:featureKeys = [ordered]@{ clipboard_text = 'clipboard_text'; file_dialogs = 'file_dialogs'; external_open = 'external_open'
+        drag_drop = 'incoming_drop'; ime = 'ime'; accessibility = 'accessibility' }
+
+    function Get-FeatureState($Caps, [string]$Flag) {
+        # The top-level flag says whether the host offers the API in this session. The feature
+        # entry's 'available' is $true/$false when the host has observed the native service and
+        # $null ("not observed") otherwise; on a native desktop Core 1.0.3 reports $null here.
+        # $null is not $false.
+        if (-not $Caps.$Flag) { return @{ Text = 'not available'; Usable = $false } }
+        $entry = $null
+        if ($null -ne $Caps.features) { $entry = $Caps.features.($script:featureKeys[$Flag]) }
+        $available = $null
+        if ($null -ne $entry) { $available = $entry.available }
+        if ($null -eq $available) { return @{ Text = 'enabled (not observed)'; Usable = $true } }
+        if ($available) { return @{ Text = 'available'; Usable = $true } }
+        return @{ Text = 'unavailable'; Usable = $false }
+    }
+
     function ConvertTo-Rows($Pairs) {
         # Values from the host are data: always encoded, never trusted as markup.
         $html = New-Object System.Text.StringBuilder
@@ -66,8 +85,14 @@ try {
             @{ Name = 'PowerShell'; Value = "$($PSVersionTable.PSEdition) $($PSVersionTable.PSVersion)" },
             @{ Name = 'Module'; Value = [string](Get-Module NativeHTMLKit).Version })
         Set-NativeHTMLKitDocumentHtml -Document $doc -Element host -Html (ConvertTo-Rows $hostInfo)
-        $features = @(foreach ($name in 'clipboard_text', 'file_dialogs', 'external_open', 'drag_drop', 'ime', 'accessibility') { @{ Name = $name; Value = [bool]$caps.$name } })
-        Set-NativeHTMLKitDocumentHtml -Document $doc -Element features -Html (ConvertTo-Rows $features)
+        $featureHtml = New-Object System.Text.StringBuilder
+        foreach ($flag in $script:featureKeys.Keys) {
+            $state = Get-FeatureState $caps $flag
+            $class = 'no'
+            if ($state.Usable) { $class = 'yes' }
+            [void]$featureHtml.Append('<tr><th>' + [Net.WebUtility]::HtmlEncode($flag) + "</th><td class=`"$class`">" + [Net.WebUtility]::HtmlEncode($state.Text) + '</td></tr>')
+        }
+        Set-NativeHTMLKitDocumentHtml -Document $doc -Element features -Html $featureHtml.ToString()
 
         $prefs = Get-NativeHTMLKitPreferences -Application $app
         Set-NativeHTMLKitDocumentHtml -Document $doc -Element prefs -Html (ConvertTo-Rows @(
@@ -104,6 +129,16 @@ try {
         $report = Update-Diagnostics
         if ($report.Connection.CallbackFailures -ne 0) { throw 'no callback should have failed' }
         if ((Find-NativeHTMLKitElement -Document $doc -Selector '#features tr').matched_nodes -ne 6) { throw 'feature table incomplete' }
+        # The shape a native desktop reports (Core 1.0.3): top-level flags true, availability null.
+        $native = [pscustomobject]@{ clipboard_text = $true; file_dialogs = $true; external_open = $true; drag_drop = $true; ime = $true; accessibility = $true
+            features = [pscustomobject]@{ clipboard_text = [pscustomobject]@{ available = $null }; file_dialogs = [pscustomobject]@{ available = $null }
+                external_open = [pscustomobject]@{ available = $null }; incoming_drop = [pscustomobject]@{ available = $false }
+                ime = [pscustomobject]@{ available = $null }; accessibility = [pscustomobject]@{ available = $null } } }
+        if ((Get-FeatureState $native 'file_dialogs').Text -ne 'enabled (not observed)') { throw 'null availability must not be reported as unavailable' }
+        if ((Get-FeatureState $native 'drag_drop').Text -ne 'unavailable') { throw 'drag_drop must read features.incoming_drop' }
+        $caps = Get-NativeHTMLKitCapabilities -Application $app
+        $expected = (@($script:featureKeys.Keys | ForEach-Object { $_ + (Get-FeatureState $caps $_).Text }) -join '')
+        if ((Get-NativeHTMLKitDocumentText -Document $doc -Element features) -ne $expected) { throw 'feature rows do not match the capabilities' }
         $item = Export-Bundle
         if ($null -eq $item -or -not (Test-Path -LiteralPath $item.FullName)) { throw 'bundle not written' }
         Add-Type -AssemblyName System.IO.Compression.FileSystem

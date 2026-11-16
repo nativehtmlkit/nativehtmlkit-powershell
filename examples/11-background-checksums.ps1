@@ -10,12 +10,13 @@
 # quitting while a job is running; the native folder dialog; file names are untrusted text,
 # encoded with [Net.WebUtility]::HtmlEncode.
 #
-# Run:  pwsh -File ./11-background-checksums.ps1 [-Folder C:\Tools]      (default: the current directory)
+# Run:  pwsh -File ./11-background-checksums.ps1 [[-Folder] C:\Tools]    (default: the current directory;
+#       -Path is accepted as an alias, and the folder may also be given without a name)
 #       powershell.exe -NoProfile -File .\11-background-checksums.ps1
 # Type or browse to a folder, then press Start.
 # -SelfTest hashes a scratch folder, checks hashes, rows, escaping, progress, a bad folder,
 # cancel and the quit veto, and quits.
-param([string]$Folder, [switch]$SelfTest)
+param([Alias('Path')][string]$Folder, [switch]$SelfTest)
 $ErrorActionPreference = 'Stop'
 Import-Module NativeHTMLKit
 
