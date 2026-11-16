@@ -18,7 +18,7 @@ $app = Start-NativeHTMLKitScript -Name 'Settings dialog'
 try {
     if ($SelfTest) { $SettingsPath = Join-Path ([IO.Path]::GetTempPath()) ('nhk-settings-' + [guid]::NewGuid().ToString('N') + '.json') }
     if (-not $SettingsPath) {
-        $SettingsPath = Join-Path (Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'NativeHTMLKit-Examples') 'settings.json'
+        $SettingsPath = Join-Path (Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::ApplicationData, [Environment+SpecialFolderOption]::Create)) 'NativeHTMLKit-Examples') 'settings.json'
     }
 
     $window = New-NativeHTMLKitWindow -Application $app -Title 'Settings dialog' -Width 640 -Height 480

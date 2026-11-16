@@ -20,7 +20,7 @@ Import-Module NativeHTMLKit
 $app = Start-NativeHTMLKitScript -Name 'Snippet editor'
 try {
     if ($SelfTest) { $Path = Join-Path ([IO.Path]::GetTempPath()) ('nhk-snippet-' + [guid]::NewGuid().ToString('N') + '.txt') }
-    if (-not $Path) { $Path = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'nativehtmlkit-snippet.txt' }
+    if (-not $Path) { $Path = Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::MyDocuments, [Environment+SpecialFolderOption]::Create)) 'nativehtmlkit-snippet.txt' }
 
     $window = New-NativeHTMLKitWindow -Application $app -Title 'Snippet editor' -Width 720 -Height 500
     $doc = Open-NativeHTMLKitHtml -Window $window -Html @'
