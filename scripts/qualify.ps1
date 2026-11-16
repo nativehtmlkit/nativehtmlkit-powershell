@@ -21,6 +21,9 @@ param(
     # Only the desktop parts (G6 GUI and the GUI install smoke): run this second, under the desktop
     # lock, after a run without -Gui; results merge by gate id into the same results.json.
     [switch]$GuiOnly,
+    # Gallery-style install (G8): PowerShell 7 publishes -Package to a local repository and installs it by
+    # name; Windows PowerShell 5.1 installs with Install-Module from this repository folder (made by a PS 7 run).
+    [string]$GalleryRepository,
     [string[]]$Suites = @('Unit', 'Transport', 'Faults', 'Tasks', 'Diagnostics', 'Review', 'DirectStart', 'RealHost'),
     # Deadline per step: a hang is recorded as FAIL (timeout) instead of stalling qualification.
     [ValidateRange(60, 7200)][int]$StepTimeoutSeconds = 1200
@@ -179,6 +182,19 @@ if ($Package) {
             '-Package', (Resolve-Path -LiteralPath $Package).Path, '-ExpectedHostSha256', $PackageHostSha256, '-Out', $smokeOut)
         if ($mode -eq 'gui') { $smokeArgs += '-Gui' }
         Invoke-Logged "installed-smoke-$mode" 'G8' $shell $smokeArgs @{} @{ evidence = $smokeOut; package_sha256 = (Get-FileHash -LiteralPath $Package -Algorithm SHA256).Hash.ToLowerInvariant() }
+    }
+    if (-not $GuiOnly) {
+        $galleryOut = Join-Path $Out "gallery-$Label"
+        $galleryRepo = if ($GalleryRepository) { $GalleryRepository } else { Join-Path $Out "gallery-repository-$Label" }
+        $galleryArgs = @('-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $root 'scripts/test-gallery-install.ps1'),
+            '-ExpectedHostSha256', $PackageHostSha256, '-Repository', $galleryRepo, '-Out', $galleryOut)
+        if ($PSVersionTable.PSEdition -eq 'Core') {
+            Invoke-Logged 'gallery-install' 'G8' $shell ($galleryArgs + @('-Package', (Resolve-Path -LiteralPath $Package).Path)) @{} @{ evidence = $galleryOut; repository = $galleryRepo }
+        } elseif ($GalleryRepository -and (Test-Path -LiteralPath $GalleryRepository)) {
+            Invoke-Logged 'gallery-install' 'G8' $shell $galleryArgs @{} @{ evidence = $galleryOut; repository = $galleryRepo; installer = 'PowerShellGet Install-Module' }
+        } else {
+            Add-Result 'gallery-install' 'G8' 'BLOCKED' 'test-gallery-install.ps1 (Windows PowerShell 5.1)' 0 $null $null @{ reason = 'needs -GalleryRepository with the .nupkg published by a PowerShell 7 run' }
+        }
     }
 }
 

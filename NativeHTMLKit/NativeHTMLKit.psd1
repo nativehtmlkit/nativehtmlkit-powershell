@@ -1,6 +1,6 @@
 @{
     RootModule = 'NativeHTMLKit.psm1'
-    ModuleVersion = '0.1.0'
+    ModuleVersion = '0.1.1'
     GUID = 'e847e31c-4103-4872-a815-c1ec197a13fc'
     Author = 'NativeHTMLKit contributors'
     CompanyName = 'NativeHTMLKit'
@@ -57,7 +57,7 @@
             Tags = @('UI','GUI','HTML','CSS','Native','Desktop','Linux','Windows','Wayland','PowerShell','Rust','PSEdition_Desktop','PSEdition_Core')
             LicenseUri = 'https://github.com/nativehtmlkit/nativehtmlkit-powershell/blob/main/LICENSE'
             ProjectUri = 'https://github.com/nativehtmlkit/nativehtmlkit-powershell'
-            ReleaseNotes = '0.1.0: first standalone NativeHTMLKit PowerShell SDK. Core host artifacts are pinned and staged locally from the native Core release; no Python dependency. Protocol v1 wire environment remains UI4ME_ for compatibility.'
+            ReleaseNotes = '0.1.1: full release; bundles NativeHTMLKit Core 1.0.3 and requires its behaviour. Core wire protocol v1 is now the public-stable wire contract (1.0). Live bitmaps on Linux work with the host''s shared lock on transport files (NHK-CROSS-0008). Diagnostics level off no longer needs the 0.1.0 interim mapping (the host now relays script output at every level); the diagnostic report adds the host dropped_notifications counter; package manifests record and cross-check the host source identity. Installable from the PowerShell Gallery (Install-Module NativeHTMLKit / Install-PSResource NativeHTMLKit) or the GitHub release ZIP. 0.1.0: first standalone release.'
         }
     }
 }

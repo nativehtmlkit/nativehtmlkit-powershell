@@ -12,7 +12,7 @@
 # notifications until the callback returns.
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
-$script:NativeHTMLKitVersion = '0.1.0'
+$script:NativeHTMLKitVersion = '0.1.1'
 $script:NativeHTMLKitHelperLoaded = $false
 $script:NativeHTMLKitIsWindows = [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT
 $script:MaximumDeferred = 128
@@ -390,7 +390,9 @@ function Connect-NativeHTMLKit {
     Connects this PowerShell backend to the native NativeHTMLKit host that launched it.
     .DESCRIPTION
     Reads UI4ME_ENDPOINT and UI4ME_TOKEN, opens the private Unix socket or Windows
-    named pipe, and authenticates with host.hello (protocol version 1).
+    named pipe, and authenticates with host.hello (protocol version 1). Protocol v1 is the
+    public-stable wire contract (1.0) since Core 1.0.3; this module version requires Core 1.0.3
+    behaviour and bundles that host.
     #>
     [CmdletBinding()]
     param(
@@ -1462,11 +1464,11 @@ function Get-NativeHTMLKitHostPath {
         return $resolved
     }
     $arch = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture
-    if ($arch -ne [Runtime.InteropServices.Architecture]::X64) { throw "NativeHTMLKit 0.1.0 ships x64 hosts only; this system is $arch" }
+    if ($arch -ne [Runtime.InteropServices.Architecture]::X64) { throw "NativeHTMLKit ships x64 hosts only; this system is $arch" }
     if ($script:NativeHTMLKitIsWindows) { $rid = 'win-x64'; $relative = 'runtimes/win-x64/nativehtmlkit-host.exe' }
     elseif ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Linux)) {
         $rid = 'linux-x64'; $relative = 'runtimes/linux-x64/nativehtmlkit-host'
-    } else { throw 'NativeHTMLKit 0.1.0 supports Linux and Windows only' }
+    } else { throw 'NativeHTMLKit supports Linux and Windows only' }
     $found = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot $relative))
     if (-not (Test-Path -LiteralPath $found -PathType Leaf)) {
         throw 'The native NativeHTMLKit host is missing. Install the qualified NativeHTMLKit module or set NATIVEHTMLKIT_HOST_BINARY.'
@@ -1518,9 +1520,9 @@ function Start-NativeHTMLKitHost {
     if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { throw "Manifest not found: $full" }
     if ($NoWait) {
         $quoted = '"' + $full.Replace('"', '\"') + '"'
-        return (Invoke-NativeHTMLKitHostSpawn { Start-Process -FilePath $hostBinary -ArgumentList @('run', '--app', $quoted) -PassThru })
+        return (Start-Process -FilePath $hostBinary -ArgumentList @('run', '--app', $quoted) -PassThru)
     }
-    Invoke-NativeHTMLKitHostSpawn { & $hostBinary run --app $full }
+    & $hostBinary run --app $full
     if ($LASTEXITCODE -ne 0) { throw "NativeHTMLKit host exited with code $LASTEXITCODE" }
 }
 
@@ -1612,25 +1614,6 @@ function New-NativeHTMLKitPrivateDirectory {
     if ($LASTEXITCODE -ne 0) { throw "Cannot create a private launch folder (mkdir exit $LASTEXITCODE)" }
     $mode = (& /usr/bin/stat -c '%a' -- $Path 2>$null)
     if ([string]$mode -ne '700') { Remove-NativeHTMLKitTreeSafely $Path; throw "The launch folder is not private (mode $mode)" }
-}
-
-function Invoke-NativeHTMLKitHostSpawn {
-    # Runs $Action (which starts the host) with the environment the host should inherit.
-    # Interim rule for NHK-CROSS-0007: with NATIVEHTMLKIT_DIAGNOSTICS=off the Core host would also
-    # drop the backend's own stdout/stderr and its fatal error. The host is therefore given
-    # 'normal'; NATIVEHTMLKIT_SDK_DIAGNOSTICS=off keeps SDK records off in the backend.
-    param([scriptblock]$Action)
-    $level = ([string]$env:NATIVEHTMLKIT_DIAGNOSTICS).Trim().ToLowerInvariant()
-    if ($level -ne 'off') { return (& $Action) }
-    $savedSdk = $env:NATIVEHTMLKIT_SDK_DIAGNOSTICS
-    try {
-        $env:NATIVEHTMLKIT_DIAGNOSTICS = 'normal'
-        if (-not $savedSdk) { $env:NATIVEHTMLKIT_SDK_DIAGNOSTICS = 'off' }
-        return (& $Action)
-    } finally {
-        $env:NATIVEHTMLKIT_DIAGNOSTICS = 'off'
-        $env:NATIVEHTMLKIT_SDK_DIAGNOSTICS = $savedSdk
-    }
 }
 
 function Start-NativeHTMLKitScript {
@@ -1761,7 +1744,7 @@ function Start-NativeHTMLKitScript {
         $verbose = @('', '0', 'false', 'no') -notcontains ([string]$env:NATIVEHTMLKIT_VERBOSE).Trim().ToLowerInvariant()
         $env:UI4ME_DIRECT_START = [string]$PID
         try {
-            $runner = Invoke-NativeHTMLKitHostSpawn { New-Object NativeHTMLKit.HostProcess -ArgumentList @($program, [string[]]$hostArguments, [Environment]::CurrentDirectory, $verbose) }
+            $runner = New-Object NativeHTMLKit.HostProcess -ArgumentList @($program, [string[]]$hostArguments, [Environment]::CurrentDirectory, $verbose)
         } finally {
             $env:UI4ME_DIRECT_START = $previousMarker
         }

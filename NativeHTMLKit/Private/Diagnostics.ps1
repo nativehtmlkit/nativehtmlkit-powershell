@@ -61,10 +61,8 @@ function Test-NativeHTMLKitDiagnosticEnabled {
 }
 
 function Get-NativeHTMLKitSdkDiagnosticLevel {
-    # NATIVEHTMLKIT_SDK_DIAGNOSTICS (set by the launcher for level 'off', see NHK-CROSS-0007) wins
-    # for SDK records; otherwise the shared NATIVEHTMLKIT_DIAGNOSTICS switch applies.
-    $sdk = [Environment]::GetEnvironmentVariable('NATIVEHTMLKIT_SDK_DIAGNOSTICS')
-    if (-not [string]::IsNullOrWhiteSpace($sdk)) { return $sdk }
+    # One switch for SDK, host and backend. (The 0.1.0 interim off->normal mapping is gone:
+    # Core 1.0.3 relays backend output at every level, NHK-CROSS-0007.)
     return [Environment]::GetEnvironmentVariable('NATIVEHTMLKIT_DIAGNOSTICS')
 }
 
@@ -123,7 +121,8 @@ function Get-NativeHTMLKitHostLossCounters {
     $counters = [ordered]@{}
     $result = Invoke-NativeHTMLKitRpc -Application $Application -Method 'host.diagnostics' -TimeoutMilliseconds 5000
     $source = Get-NativeHTMLKitField $result 'logging' $result
-    foreach ($name in @('sink_dropped_records', 'backend_omitted_records', 'sink_capacity_records', 'backend_records_per_pump')) {
+    # dropped_notifications (Core 1.0.3): window/document events the host dropped under backpressure.
+    foreach ($name in @('dropped_notifications', 'sink_dropped_records', 'backend_omitted_records', 'sink_capacity_records', 'backend_records_per_pump')) {
         $value = Get-NativeHTMLKitField $source $name
         if ($null -eq $value) { $value = Get-NativeHTMLKitField $result $name }
         if ($value -is [int] -or $value -is [long] -or $value -is [uint64]) { $counters[$name] = [long]$value }

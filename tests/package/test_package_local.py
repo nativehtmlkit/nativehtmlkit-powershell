@@ -41,6 +41,8 @@ class PackageLocal(unittest.TestCase):
         (self.rel / "THIRD_PARTY_NOTICES.md").write_text("notices")
         (self.rel / "licenses" / "MPL-2.0.txt").write_text("mpl")
         (self.rel / "release-manifest.json").write_text(json.dumps({"component": "nativehtmlkit-core", "version": "1.0.2", "host_sha256": self.sha, "protocol_version": 1, "source_dirty": False}))
+        self.ident = {"name": "nativehtmlkit-host", "version": "1.0.3", "source_identity": "git", "source_commit": "c" * 40, "source_tree": "t" * 40, "source_dirty": False, "source_files_sha256": None}
+        self.identity_file = self.tmp / "identity.json"; self.identity_file.write_text(json.dumps(self.ident))
 
     def stage(self, out="out", **kw):
         hosts = kw.pop("hosts", {"linux-x64": str(self.host)})
@@ -84,6 +86,41 @@ class PackageLocal(unittest.TestCase):
         manifest = json.loads((self.tmp / "d2" / "NativeHTMLKit" / "HOST-MANIFEST.json").read_text())
         self.assertTrue(manifest["development_package"])
 
+    def manifest_103(self, **ident_overrides):
+        embedded = {k: self.ident[k] for k in ("source_identity", "source_commit", "source_tree", "source_dirty", "source_files_sha256")}
+        embedded.update(ident_overrides)
+        (self.rel / "release-manifest.json").write_text(json.dumps({"version": "1.0.3", "host_sha256": self.sha, "protocol_version": 1,
+            "source_dirty": False, "source_commit": self.ident["source_commit"], "source_tree": self.ident["source_tree"], "host_embedded_source": embedded}))
+
+    def test_records_and_cross_checks_the_host_source_identity(self):
+        self.manifest_103()
+        pkg.stage({"linux-x64": str(self.host)}, {"linux-x64": self.sha}, self.tmp / "i1", False, False, {"linux-x64": str(self.identity_file)})
+        m = json.loads((self.tmp / "i1" / "NativeHTMLKit" / "HOST-MANIFEST.json").read_text())
+        self.assertEqual(m["hosts"]["linux-x64"]["host_identity"]["source_commit"], "c" * 40)
+        self.assertEqual(m["hosts"]["linux-x64"]["host_identity"]["obtained_by"], "supplied")
+
+    def test_release_package_needs_hosts_from_one_source(self):
+        self.manifest_103()
+        win = self.tmp / "core-release-win"; (win / "licenses").mkdir(parents=True)
+        exe = win / "nativehtmlkit-host.exe"; exe.write_bytes(fake_pe()); wsha = hashlib.sha256(exe.read_bytes()).hexdigest()
+        (win / "LICENSE").write_text("MIT")
+        other = dict(self.ident, source_tree="u" * 40)
+        (win / "release-manifest.json").write_text(json.dumps({"version": "1.0.3", "host_sha256": wsha, "protocol_version": 1, "source_dirty": False,
+            "source_commit": other["source_commit"], "source_tree": other["source_tree"],
+            "host_embedded_source": {k: other[k] for k in ("source_identity", "source_commit", "source_tree", "source_dirty", "source_files_sha256")}}))
+        wid = self.tmp / "win-identity.json"; wid.write_text(json.dumps(other))
+        args = ({"linux-x64": str(self.host), "win-x64": str(exe)}, {"linux-x64": self.sha, "win-x64": wsha})
+        with self.assertRaisesRegex(SystemExit, "different Core sources"):
+            pkg.stage(*args, self.tmp / "s1", False, False, {"linux-x64": str(self.identity_file), "win-x64": str(wid)})
+
+    def test_fails_when_host_identity_disagrees_or_cannot_be_read(self):
+        self.manifest_103(source_commit="d" * 40)
+        with self.assertRaisesRegex(SystemExit, "source_commit"):
+            pkg.stage({"linux-x64": str(self.host)}, {"linux-x64": self.sha}, self.tmp / "i2", False, False, {"linux-x64": str(self.identity_file)})
+        self.manifest_103()
+        with self.assertRaisesRegex(SystemExit, "version|cannot run|failed|Exec format|exec format|OSError|No such"):
+            pkg.stage({"linux-x64": str(self.host)}, {"linux-x64": self.sha}, self.tmp / "i3", False, False, {})
+
     def test_fails_closed_on_sha_mismatch(self):
         with self.assertRaisesRegex(SystemExit, "SHA-256 mismatch"):
             self.stage(shas={"linux-x64": "0" * 64})
@@ -116,7 +153,7 @@ class PackageLocal(unittest.TestCase):
         (win / "LICENSE").write_text("MIT")
         (win / "release-manifest.json").write_text(json.dumps({"version": "1.0.2", "host_sha256": wsha, "protocol_version": 1, "source_dirty": False}))
         r = self.stage(hosts={"linux-x64": str(self.host), "win-x64": str(exe)}, shas={"linux-x64": self.sha, "win-x64": wsha})
-        self.assertTrue(r["artifact"].endswith("NativeHTMLKit-0.1.0-linux-x64+win-x64.zip"))
+        self.assertTrue(r["artifact"].endswith("NativeHTMLKit-0.1.1-linux-x64+win-x64.zip"))
         with self.assertRaisesRegex(SystemExit, "new or empty"):
             self.stage()
 

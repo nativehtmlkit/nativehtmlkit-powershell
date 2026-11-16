@@ -296,23 +296,88 @@ Close-NativeHTMLKit -Application $app
         $r.ExitCode | Should -Be 0 -Because $r.Err
         Test-Path -LiteralPath $marker | Should -BeFalse
     }
-    It 'keeps script output and a fatal error visible at diagnostics level <Level> (NHK-CROSS-0007 interim rule)' -ForEach @(
+    It 'keeps script output and a fatal error visible at diagnostics level <Level>, passing the level to the host unchanged (Core 1.0.3, NHK-CROSS-0007)' -ForEach @(
         @{ Level = 'off' }, @{ Level = 'normal' }, @{ Level = 'debug' }, @{ Level = 'trace' }
     ) {
         $body = @'
 $app = Start-NativeHTMLKitScript -Name 'Levels' -Instance multiple
 $r = Get-NativeHTMLKitDiagnosticReport
-[Console]::Out.WriteLine("APP-OUTPUT sdk_level=$($r.Level)")
+[Console]::Out.WriteLine("APP-OUTPUT sdk_level=$($r.Level) env=$env:NATIVEHTMLKIT_DIAGNOSTICS")
 throw 'APP-FATAL deliberate'
 '@
         $r = Invoke-App $body @{ NATIVEHTMLKIT_DIAGNOSTICS = $Level }
         $r.ExitCode | Should -Not -Be 0
-        (Get-Lines $r 'APP-OUTPUT ')[0] | Should -Be "APP-OUTPUT sdk_level=$Level"
+        (Get-Lines $r 'APP-OUTPUT ')[0] | Should -Be "APP-OUTPUT sdk_level=$Level env=$Level"
         $r.Err | Should -Match 'APP-FATAL deliberate'
     }
 }
 
 Describe 'Lifecycle and fault behavior with the real host' -Skip:$script:SkipNative {
+    It 'correlates replies by id when a path document.load completes after later requests (Core 1.0.3)' {
+        $body = @'
+$app = Start-NativeHTMLKitScript -Name 'Order' -Instance multiple
+$w = New-NativeHTMLKitWindow -Application $app -Title 'order'
+$file = Join-Path ([IO.Path]::GetTempPath()) 'order-test.html'
+[IO.File]::WriteAllText($file, '<p id="p">' + ('x' * 400000) + '</p>')
+$load = Start-NativeHTMLKitRpc -Application $app -Method 'document.load' -Parameters @{ window_id = $w.Id; path = $file }
+$others = @(1..5 | ForEach-Object { Start-NativeHTMLKitRpc -Application $app -Method 'window.get' -Parameters @{ window_id = $w.Id } })
+$got = @($others | ForEach-Object { (Wait-NativeHTMLKitRpc -Request $_).window_id })
+$doc = Wait-NativeHTMLKitRpc -Request $load -TimeoutMilliseconds 30000
+[Console]::Out.WriteLine("ORDER others=$(($got | Sort-Object -Unique) -join ',') load_doc=$([bool]$doc.document_id) load_window=$($doc.window_id) pending=$($app.Pending.Count)")
+$null = Request-NativeHTMLKitQuit -Application $app
+Wait-NativeHTMLKit -Application $app -UntilShutdown
+Close-NativeHTMLKit -Application $app
+'@
+        $r = Invoke-App $body
+        $r.ExitCode | Should -Be 0 -Because $r.Err
+        (Get-Lines $r 'ORDER ')[0] | Should -Match '^ORDER others=w\d+ load_doc=True load_window=w\d+ pending=0$'
+    }
+
+    It 'lets plain .NET FileStream and MemoryMappedFile open the transport path bitmap.create returns (Core 1.0.3, NHK-CROSS-0008)' {
+        # .NET on Unix takes flock(LOCK_SH|LOCK_NB) on every path-based open; a host holding LOCK_EX
+        # made both opens fail. On Linux /proc/locks must also show the host's own lock on that inode
+        # as a shared (READ) flock and no exclusive (WRITE) flock, so the test cannot pass merely because
+        # the host stopped locking. The path-only CreateFromFile overload opens with FileShare.None, which
+        # Windows share modes reject while the host and the SDK hold the file (by design, no lock involved),
+        # so on Windows the mapping goes through a ReadWrite|Delete-shared FileStream instead.
+        $body = @'
+$app = Start-NativeHTMLKitScript -Name 'BitmapOpen' -Instance multiple
+$hostPid = if ($PSVersionTable.PSEdition -eq 'Core') { (Get-Process -Id $PID).Parent.Id } else { (Get-CimInstance Win32_Process -Filter "ProcessId=$PID").ParentProcessId }
+$w = New-NativeHTMLKitWindow -Application $app -Title 'bitmap open'
+$doc = Open-NativeHTMLKitHtml -Window $w -Html '<canvas id="c" width="16" height="16"></canvas>'
+$b = New-NativeHTMLKitLiveBitmap -Document $doc -Id frames -Width 16 -Height 16 -Slots 2
+$path = $b.Mapping.TransportPath
+$fs = 'fail'; $mmf = 'fail'; $locks = 'n/a'
+try { $s = New-Object IO.FileStream($path, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete)); $fs = 'ok'; $s.Dispose() } catch { $fs = $_.Exception.InnerException.Message }
+try {
+    if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
+        $m = [IO.MemoryMappedFiles.MemoryMappedFile]::CreateFromFile($path, [IO.FileMode]::Open, [NullString]::Value, 0, [IO.MemoryMappedFiles.MemoryMappedFileAccess]::ReadWrite)
+    } else {
+        $ms = New-Object IO.FileStream($path, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
+        if ($PSVersionTable.PSEdition -eq 'Core') { $m = [IO.MemoryMappedFiles.MemoryMappedFile]::CreateFromFile($ms, [NullString]::Value, 0, [IO.MemoryMappedFiles.MemoryMappedFileAccess]::ReadWrite, [IO.HandleInheritability]::None, $false) }
+        else { $m = [IO.MemoryMappedFiles.MemoryMappedFile]::CreateFromFile($ms, [NullString]::Value, 0, [IO.MemoryMappedFiles.MemoryMappedFileAccess]::ReadWrite, $null, [IO.HandleInheritability]::None, $false) }
+    }
+    $v = $m.CreateViewAccessor(0, 16); $v.Write(0, [byte]1); $v.Dispose(); $m.Dispose(); $mmf = 'ok' } catch { $mmf = $_.Exception.InnerException.Message }
+if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
+    $inode = (& /usr/bin/stat -c %i -- $path).Trim()
+    $mine = @(Get-Content /proc/locks | Where-Object { $_ -match "^\d+:\s+FLOCK\s+ADVISORY\s+(READ|WRITE)\s+(\d+)\s+[0-9a-f]+:[0-9a-f]+:$inode\s" })
+    $hostRead = @($mine | Where-Object { $_ -match "\sREAD\s+$hostPid\s" }).Count
+    $anyWrite = @($mine | Where-Object { $_ -match '\sWRITE\s' }).Count
+    $locks = "host_read=$hostRead write=$anyWrite"
+}
+[Console]::Out.WriteLine("BITMAPOPEN filestream=$fs mmf=$mmf locks=$locks")
+Remove-NativeHTMLKitLiveBitmap -Bitmap $b
+$null = Request-NativeHTMLKitQuit -Application $app
+Wait-NativeHTMLKit -Application $app -UntilShutdown
+Close-NativeHTMLKit -Application $app
+'@
+        $r = Invoke-App $body
+        $r.ExitCode | Should -Be 0 -Because $r.Err
+        $line = (Get-Lines $r 'BITMAPOPEN ')[0]
+        $expected = if (-not $script:TestIsWindows) { 'BITMAPOPEN filestream=ok mmf=ok locks=host_read=1 write=0' } else { 'BITMAPOPEN filestream=ok mmf=ok locks=n/a' }
+        $line | Should -Be $expected
+    }
+
     It 'handles several windows, rapid open/close and stale handles' {
         $body = @'
 $app = Start-NativeHTMLKitScript -Name 'Multi' -Instance multiple -MaxWindows 8

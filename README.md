@@ -2,7 +2,21 @@
 
 Independent PowerShell SDK for the [NativeHTMLKit Core](https://github.com/nativehtmlkit/nativehtmlkit-core) native HTML/CSS host: native desktop windows from local HTML and CSS, driven by ordinary PowerShell scripts. Targets: **PowerShell 7.2+ on Linux and Windows, and Windows PowerShell 5.1**. End users need no Python, Rust compiler, browser, JavaScript runtime or HTTP server; a packaged module carries a prebuilt Core host.
 
-**Status: 0.1.0 prerelease published on GitHub Releases: <https://github.com/nativehtmlkit/nativehtmlkit-powershell/releases/tag/v0.1.0>; locally qualified (see [docs/QUALIFICATION.md](docs/QUALIFICATION.md)); protocol v1 still 1.0-rc; not on the PowerShell Gallery.**
+**Status: 0.1.1, a full release that bundles NativeHTMLKit Core 1.0.3. It speaks Core wire protocol v1, which is the public-stable wire contract (1.0) since Core 1.0.3, and it requires Core 1.0.3 behaviour (first presentation after load or 750 ms, work-area clamping, the host relaying script output at every diagnostics level, the shared lock on Linux bitmap transport files). The previous version, 0.1.0, was a GitHub prerelease <https://github.com/nativehtmlkit/nativehtmlkit-powershell/releases/tag/v0.1.0>. What was qualified is recorded in [docs/QUALIFICATION.md](docs/QUALIFICATION.md).**
+
+## Install
+
+From the PowerShell Gallery (0.1.1 and later):
+
+```text
+Install-PSResource NativeHTMLKit     # PowerShell 7.4+ (PSResourceGet)
+Install-Module NativeHTMLKit         # Windows PowerShell 5.1 / PowerShellGet
+```
+
+Or from a GitHub release ZIP: verify its SHA-256, then extract it into a folder on `$env:PSModulePath` so that
+`NativeHTMLKit/NativeHTMLKit.psd1` sits directly in it. Either way the module carries the prebuilt Core host for Linux x64 and
+Windows x64 and checks it against `HOST-MANIFEST.json` before each launch (a package manager may drop the Linux host's
+executable bit; the module restores it).
 
 ## Quick start
 
@@ -23,6 +37,8 @@ Close-NativeHTMLKit -Application $app
 Save it as `app.ps1` and run `pwsh -File app.ps1` (or `powershell.exe -File app.ps1`). `Start-NativeHTMLKitScript` writes a private temporary manifest, starts the host, and the host runs the same script a second time as its backend; keep side effects below that call. Call `Set-NativeHTMLKitReady` once the first window is set up: the Core host treats closing a window or quitting *before* `app.ready` as cancelling startup. `New-NativeHTMLKitProject -Path ./MyApp` generates a complete app (`app.ps1`, `index.html`, `style.css`, optional `app.toml`).
 
 Canonical commands are `Verb-NativeHTMLKitNoun` (88 functions); every one has a short alias `Verb-NHKNoun` (`New-NHKWindow`, `Open-NHKHtml`, `Wait-NHK`, `Start-NHKScript`, ...). The aliases are listed explicitly in the manifest, so they auto-load the installed module.
+
+A new native window is first shown when its first document has loaded, or at the latest 750 ms after `New-NativeHTMLKitWindow` (Core 1.0.3): on Windows `Get-NativeHTMLKitWindow` reports `observed.visible = false` until then and a `Set-NativeHTMLKitWindow -Visible` is applied when it is shown. New windows open inside the monitor's work area (Windows) or within the smallest output's size (Wayland); `width`/`height` stay as requested, `physical_size` and `observed.position` are the real geometry.
 
 ## Concurrency, callbacks and background work
 
@@ -59,7 +75,8 @@ Export-NativeHTMLKitSupportBundle -Path ./report.zip -Application $app # local Z
 
 - `-Diagnostics` / `NATIVEHTMLKIT_DIAGNOSTICS` (`off|normal|debug|trace`) is inherited by the Core host and by the backend process; `NATIVEHTMLKIT_DIAGNOSTIC_SESSION_ID` (generated as `nhk-ps-<guid>` when absent; a caller-provided ID in the Core alphabet `[A-Za-z0-9._:-]{1,128}` is kept) correlates launcher, host stderr records (`diagnostic_session_id`) and backend.
 - At `trace` the SDK timeline links host notification → callback → `rpc.started`/`rpc.completed` (same `request_id`) → task → UI update RPC. Records hold only fixed event names, identifiers, numbers and short tokens: never RPC parameters or results, form values, text, exception messages, paths, URLs or credentials.
-- `off` turns SDK records off. Interim rule (Core NHK-CROSS-0007): the Core host would also drop the script's own output and fatal error at `off`, so a host started by `Start-NativeHTMLKitScript`/`Start-NativeHTMLKitHost` is given `normal` while the backend's SDK records stay off (`NATIVEHTMLKIT_SDK_DIAGNOSTICS=off`).
+- `off` turns SDK records off and is passed to the host unchanged; with Core 1.0.3 the host still relays the script's own output and fatal error at every level (NHK-CROSS-0007 fixed in Core; the 0.1.0 interim `off`→`normal` mapping is gone).
+- `Get-NativeHTMLKitDiagnosticReport -Application` includes the host's `host.diagnostics` counters: `dropped_notifications` (window/document events the host dropped while this backend was not reading, Core 1.0.3) and the logging loss counters.
 - Context values are allow-listed per key (protocol method names, DOM/window event types, callback roles, exception type names, task/window/document ids); any other string, element ids included, is exported as `[REDACTED]`.
 - The history is bounded (2048 records); dropped records are counted and the bundle manifest says `complete: false`. The bundle contains `manifest.json` and `timeline.jsonl` only; raw host/backend stderr is never included (it can contain application output) and nothing is uploaded.
 - The Core host itself logs only lifecycle records, even at `trace` (Project bug NHK-CROSS-0004).

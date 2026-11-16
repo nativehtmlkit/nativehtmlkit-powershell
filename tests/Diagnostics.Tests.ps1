@@ -189,6 +189,7 @@ Describe 'Diagnostic levels, bounds and the explicit support bundle' {
         $r = Get-NativeHTMLKitDiagnosticReport -Application $script:app
         $r.Connection.DroppedNotifications | Should -Be 0
         $r.HostCounters.sink_capacity_records | Should -Be 4096
+        $r.HostCounters.dropped_notifications | Should -Be 5        # Core 1.0.3 backpressure counter
         @($r.HostCounters.Keys) | Should -Not -Contain 'note'
     }
 }

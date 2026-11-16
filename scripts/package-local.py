@@ -23,8 +23,10 @@ import datetime as dt
 import hashlib
 import json
 import re
+import platform
 import shutil
 import stat
+import subprocess
 import sys
 import zipfile
 from pathlib import Path
@@ -94,7 +96,34 @@ def parse_pairs(values: list[str], what: str) -> dict:
     return pairs
 
 
-def verify_host(rid: str, host: Path, expected: str, allow_missing_licenses: bool, allow_dirty: bool = False) -> dict:
+IDENTITY_FIELDS = ("source_commit", "source_tree", "source_dirty", "source_files_sha256")
+
+
+def native_rid() -> str:
+    machine = platform.machine().lower()
+    if machine not in ("x86_64", "amd64"):
+        return ""
+    return "win-x64" if sys.platform.startswith("win") else ("linux-x64" if sys.platform.startswith("linux") else "")
+
+
+def host_identity(rid: str, host: Path, supplied: str | None) -> tuple[dict, str]:
+    """`nativehtmlkit-host --version --verbose` JSON: executed here when the host runs on this OS,
+    otherwise taken from a file captured on the host's own platform (--identity RID=FILE)."""
+    if supplied:
+        return json.loads(Path(supplied).read_text(encoding="utf-8-sig")), "supplied"
+    if rid != native_rid():
+        raise SystemExit(f"{rid}: cannot run this host here to read its source identity; capture "
+                         f"`nativehtmlkit-host --version --verbose` on {rid} and pass --identity {rid}=FILE")
+    try:
+        out = subprocess.run([str(host), "--version", "--verbose"], capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise SystemExit(f"{rid}: cannot run the host to read its source identity: {error}")
+    if out.returncode != 0:
+        raise SystemExit(f"{rid}: `--version --verbose` failed (exit {out.returncode})")
+    return json.loads(out.stdout.strip().splitlines()[-1]), "executed"
+
+
+def verify_host(rid: str, host: Path, expected: str, allow_missing_licenses: bool, allow_dirty: bool = False, identity: str | None = None) -> dict:
     if not re.fullmatch(r"[0-9a-fA-F]{64}", expected or ""):
         raise SystemExit(f"{rid}: expected SHA-256 must be 64 hex digits")
     if not host.is_file():
@@ -116,6 +145,20 @@ def verify_host(rid: str, host: Path, expected: str, allow_missing_licenses: boo
             raise SystemExit(f"{rid}: the Core release was built from a dirty source tree (source_dirty={manifest.get('source_dirty')}); "
                              "pass --allow-dirty-core to build a development package from it")
         info["dirty_core"] = manifest.get("source_dirty") is not False
+        embedded = manifest.get("host_embedded_source")
+        if embedded is not None:
+            # Core >= 1.0.3: the binary reports the source it was built from; it must agree with the
+            # release manifest (and the manifest's own top-level source fields).
+            ident, how = host_identity(rid, host, identity)
+            for key in IDENTITY_FIELDS:
+                if ident.get(key) != embedded.get(key):
+                    raise SystemExit(f"{rid}: host identity {key}={ident.get(key)!r} differs from the release manifest ({embedded.get(key)!r})")
+            if ident.get("version") != manifest.get("version"):
+                raise SystemExit(f"{rid}: host reports version {ident.get('version')!r}, release manifest says {manifest.get('version')!r}")
+            for key in ("source_commit", "source_tree", "source_dirty"):
+                if key in manifest and manifest[key] != ident.get(key):
+                    raise SystemExit(f"{rid}: host identity {key} differs from the release manifest's {key}")
+            info["host_identity"] = {**{k: ident.get(k) for k in ("name", "version", "source_identity", *IDENTITY_FIELDS)}, "obtained_by": how}
         info["core_release"] = {k: manifest.get(k) for k in ("component", "version", "platform", "build_target", "protocol_version",
                                                              "protocol_status", "source_commit", "source_tree", "source_dirty", "host_reproducible")}
         notices = [p for p in (host.parent / "LICENSE", host.parent / "THIRD_PARTY_NOTICES.md") if p.is_file()]
@@ -131,17 +174,25 @@ def verify_host(rid: str, host: Path, expected: str, allow_missing_licenses: boo
     return info
 
 
-def stage(hosts: dict, shas: dict, out: Path, allow_missing_licenses: bool, allow_dirty: bool = False) -> dict:
+def stage(hosts: dict, shas: dict, out: Path, allow_missing_licenses: bool, allow_dirty: bool = False, identities: dict | None = None) -> dict:
     if set(hosts) != set(shas):
         raise SystemExit("every --host needs a matching --sha256 and vice versa")
     if not hosts:
         raise SystemExit("at least one --host RID=PATH is required")
     if out.exists() and any(out.iterdir()):
         raise SystemExit(f"output directory must be new or empty: {out}")
-    infos = {rid: verify_host(rid, Path(hosts[rid]), shas[rid], allow_missing_licenses, allow_dirty) for rid in sorted(hosts)}
+    identities = identities or {}
+    unknown = set(identities) - set(hosts)
+    if unknown:
+        raise SystemExit(f"--identity given for runtimes without --host: {sorted(unknown)}")
+    infos = {rid: verify_host(rid, Path(hosts[rid]), shas[rid], allow_missing_licenses, allow_dirty, identities.get(rid)) for rid in sorted(hosts)}
     versions = {i["core_release"]["version"] for i in infos.values() if i["core_release"]}
     if len(versions) > 1:
         raise SystemExit(f"hosts come from different Core versions: {sorted(versions)}")
+    sources = {(i["host_identity"]["source_commit"], i["host_identity"]["source_tree"]) for i in infos.values() if i.get("host_identity")}
+    if len(sources) > 1 and not allow_dirty:
+        raise SystemExit(f"hosts were built from different Core sources {sorted(sources)}; a release package needs one source "
+                         "(--allow-dirty-core builds a development package)")
     version = module_version()
     out.mkdir(parents=True, exist_ok=True)
     dest = out / "NativeHTMLKit"
@@ -200,8 +251,9 @@ def main(argv=None) -> int:
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--allow-missing-core-licenses", action="store_true")
     ap.add_argument("--allow-dirty-core", action="store_true", help="accept a Core release built from a dirty tree (marks the package development_package)")
+    ap.add_argument("--identity", action="append", default=[], metavar="RID=FILE", help="`nativehtmlkit-host --version --verbose` output captured on that runtime (for a host that cannot run here)")
     a = ap.parse_args(argv)
-    print(json.dumps(stage(parse_pairs(a.host, "--host"), parse_pairs(a.sha256, "--sha256"), a.out, a.allow_missing_core_licenses, a.allow_dirty_core), indent=2))
+    print(json.dumps(stage(parse_pairs(a.host, "--host"), parse_pairs(a.sha256, "--sha256"), a.out, a.allow_missing_core_licenses, a.allow_dirty_core, parse_pairs(a.identity, "--identity")), indent=2))
     return 0
 
 

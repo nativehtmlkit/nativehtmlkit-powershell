@@ -77,6 +77,14 @@ Describe 'Host errors and lost replies' {
         $script:app.Transport.IsDisconnected | Should -BeFalse
     }
 
+    It 'correlates replies by id, not order (a later request answered first, as Core 1.0.3 path loads can be)' {
+        $held = Start-NativeHTMLKitRpc -Application $script:app -Method 'mock.hold'
+        $release = Start-NativeHTMLKitRpc -Application $script:app -Method 'mock.release'
+        (Wait-NativeHTMLKitRpc -Request $held).held | Should -BeTrue           # awaited first, answered second
+        (Wait-NativeHTMLKitRpc -Request $release).released | Should -BeTrue
+        $script:app.Pending.Count | Should -Be 0
+    }
+
     It 'reports a dropped reply as a timeout whose outcome is unknown, and cancels it' {
         $caught = $null
         try { $null = Invoke-NativeHTMLKitRpc -Application $script:app -Method 'mock.never' -TimeoutMilliseconds 200 } catch { $caught = $_.Exception }

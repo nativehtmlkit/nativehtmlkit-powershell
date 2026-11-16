@@ -6,9 +6,10 @@ BeforeAll {
 }
 
 Describe 'NativeHTMLKit manifest and exports' {
-    It 'has the 0.1.0 identity and matching manifest/module exports' {
+    It 'has the 0.1.1 identity and matching manifest/module exports' {
         $m = Test-ModuleManifest $script:ModuleManifest
-        $m.Version.ToString() | Should -Be '0.1.0'
+        $m.Version.ToString() | Should -Be '0.1.1'
+        (& (Get-Module NativeHTMLKit) { $script:NativeHTMLKitVersion }) | Should -Be '0.1.1'
         $m.CompatiblePSEditions | Should -Contain 'Desktop'
         $m.CompatiblePSEditions | Should -Contain 'Core'
         $declared = @($m.ExportedFunctions.Keys | Sort-Object)
@@ -34,6 +35,24 @@ Describe 'NativeHTMLKit manifest and exports' {
         $cmd = "`$env:PSModulePath = '$mods' + [IO.Path]::PathSeparator + `$env:PSModulePath; `$c = Get-Command New-NHKProject -ErrorAction Stop; `$c.ResolvedCommand.Name + '|' + (Get-Module NativeHTMLKit).ModuleBase"
         $out = & $shell -NoProfile -NonInteractive -EncodedCommand ([Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($cmd)))
         $out | Should -Be ('New-NativeHTMLKitProject|' + (Join-Path $mods 'NativeHTMLKit'))
+    }
+    It 'meets the PowerShell Gallery manifest rules' {
+        $m = Test-ModuleManifest $script:ModuleManifest
+        $data = Import-PowerShellDataFile -LiteralPath $script:ModuleManifest
+        $ps = $data.PrivateData.PSData
+        $m.Author | Should -Not -BeNullOrEmpty
+        $m.Description.Length | Should -BeGreaterThan 20
+        $m.Description.Length | Should -BeLessOrEqual 4000
+        $ps.ProjectUri | Should -Match '^https://'
+        $ps.LicenseUri | Should -Match '^https://'
+        $ps.ContainsKey('Prerelease') | Should -BeFalse
+        $m.Version.ToString() | Should -Match '^\d+\.\d+\.\d+$'
+        @($ps.Tags).Count | Should -BeLessOrEqual 50
+        foreach ($t in $ps.Tags) { $t | Should -Match '^[A-Za-z0-9_.-]{1,64}$' }
+        (@($ps.Tags) -join ' ').Length | Should -BeLessOrEqual 4000
+        $ps.ReleaseNotes | Should -Match ('^' + [regex]::Escape($m.Version.ToString()))
+        $data.ContainsKey('FunctionsToExport') -and @($data.FunctionsToExport) -notcontains '*' | Should -BeTrue
+        @($data.AliasesToExport) -notcontains '*' | Should -BeTrue
     }
     It 'documents every exported function (aliases share their target help)' {
         foreach ($c in Get-Command -Module NativeHTMLKit -CommandType Function) {

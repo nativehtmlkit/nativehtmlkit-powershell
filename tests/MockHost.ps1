@@ -96,7 +96,7 @@ try {
                 Respond $m.params.target @{ late = $true }
                 Respond $id @{ ok = $true }
             }
-            'host.diagnostics' { Respond $id @{ logging = @{ sink_dropped_records = 3; backend_omitted_records = 1; sink_capacity_records = 4096; note = 'C:\secret\path' } } }
+            'host.diagnostics' { Respond $id @{ dropped_notifications = 5; logging = @{ sink_dropped_records = 3; backend_omitted_records = 1; sink_capacity_records = 4096; note = 'C:\secret\path' } } }
             'mock.error_echo' { RespondError $id ([int]$m.params.code) ([string]$m.params.text) }
             'mock.notify_echo' { Respond $id @{ ok = $true }; Notify 'test.echo' @{ text = $m.params.text } }
             'mock.oversized' { Respond $id @{ ok = $true }; $stream.Write([byte[]]@(0, 0x30, 0, 0), 0, 4); $stream.Flush() }
@@ -123,6 +123,8 @@ try {
                 Notify 'window.event' @{ window_id = [string]$m.params.window_id; type = 'closed' }
                 Respond $id @{ sent = $count }
             }
+            'mock.hold' { $script:held = $id }   # answered later, after the request that releases it
+            'mock.release' { Respond $id @{ released = $true; order = 1 }; Respond $script:held @{ held = $true; order = 2 } }
             'mock.notify_raw' { Respond $id @{ ok = $true }; Notify ([string]$m.params.method) $m.params.params }
             'mock.two_notifies' { Notify 'test.a' @{}; Notify 'test.b' @{}; Notify 'test.c' @{}; Respond $id @{ ok = $true } }
             'mock.disconnect' { Respond $id @{ ok = $true }; $stream.Flush(); $stream.Dispose(); $stream = $null; break }

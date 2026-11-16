@@ -336,23 +336,22 @@ try {
         $report.managed_heap_growth_kb = [Math]::Round(([GC]::GetTotalMemory($true) - $before) / 1KB, 1)
         $report
     }
-    Check 'bitmap transport file exists while live and is removed after close (private runtime dir / temp)' {
-        # Core 1.0.2: Linux keeps the file in the private $XDG_RUNTIME_DIR/nativehtmlkit-host/ folder,
-        # Windows in %TEMP%; the name is ui4me-bitmap-<host pid>-*. Look in every candidate folder and
-        # require the live file to be found first, so the "nothing left" assertion cannot pass vacuously.
+    Check 'bitmap transport file exists while live and is removed after close (host-chosen directory)' {
+        # Follow the path bitmap.create returned (Core 1.0.3: Linux private runtime dir, Windows
+        # %TEMP%\nativehtmlkit-bitmaps\): the live file must exist first, so the "nothing left"
+        # assertion cannot pass vacuously, and the directory must not keep any transport file afterwards.
         $hostPid = if ($PSVersionTable.PSEdition -eq 'Core') { (Get-Process -Id $PID).Parent.Id } else { (Get-CimInstance Win32_Process -Filter "ProcessId=$PID").ParentProcessId }
-        $dirs = @([IO.Path]::GetTempPath())
-        if ($env:XDG_RUNTIME_DIR) { $dirs += @($env:XDG_RUNTIME_DIR, (Join-Path $env:XDG_RUNTIME_DIR 'nativehtmlkit-host')) }
-        $scan = { @(foreach ($d in $dirs) { Get-ChildItem -LiteralPath $d -Force -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "ui4me-bitmap-$hostPid-*" } | ForEach-Object FullName }) }
-        $before = & $scan
         $b = New-NativeHTMLKitLiveBitmap -Document $doc -Id frames -Width 16 -Height 16 -Slots 3
-        $live = @(& $scan | Where-Object { $_ -notin $before })
-        Assert-True ($live.Count -ge 1) "the live bitmap's transport file was found (host pid $hostPid; scanned $($dirs -join ', '))"
+        $file = $b.Mapping.TransportPath
+        $dir = Split-Path -Parent $file
+        Assert-True (Test-Path -LiteralPath $file -PathType Leaf) "the live transport file exists at the returned path"
+        $scan = { @(Get-ChildItem -LiteralPath $dir -Force -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "ui4me-bitmap-$hostPid-*" } | ForEach-Object FullName) }
         $null = Send-NativeHTMLKitLiveBitmap -Bitmap $b -Pixels (New-Object byte[] 1024)
         Remove-NativeHTMLKitLiveBitmap -Bitmap $b
-        $left = @(& $scan | Where-Object { $_ -notin $before })
-        Assert-True ($left.Count -eq 0) "no bitmap files left: $($left -join ', ')"
-        @{ live_files = $live; scanned = $dirs; host_pid = $hostPid }
+        $left = @(& $scan)
+        Assert-True (-not (Test-Path -LiteralPath $file)) "the transport file is gone: $file"
+        Assert-True ($left.Count -eq 0) "no bitmap files of this host left in ${dir}: $($left -join ', ')"
+        @{ transport_directory = $dir; host_pid = $hostPid }
     }
     Check 'multiple windows, close veto then allow, closed event retires handles' {
         $second = New-NativeHTMLKitWindow -Application $app -Title 'Second window' -Width 420 -Height 300

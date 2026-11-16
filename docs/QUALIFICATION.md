@@ -23,6 +23,12 @@ Windows, inside the interactive desktop, once per edition:
 
 Without `-Gui` the G6 gate is recorded as BLOCKED, never PASS. Headless and SSH-only runs are not GUI evidence. Pester 5.5–5.x must be on `PSModulePath` (Pester 6 is not supported by these suites).
 
+## Release 0.1.1 (Core 1.0.3, protocol v1 stable)
+
+0.1.1 is qualified with the same gates plus G8 `gallery-install` (local-repository Publish-PSResource/Save-PSResource on
+PowerShell 7, PowerShellGet Install-Module on Windows PowerShell 5.1) and the Docker clean room. Its executed-run record is
+added here after publication; until then see the release notes of the v0.1.1 GitHub release.
+
 ## Executed runs — release 0.1.0 (2026-11-15)
 
 Published as a GitHub prerelease: <https://github.com/nativehtmlkit/nativehtmlkit-powershell/releases/tag/v0.1.0> (tag `v0.1.0`
@@ -39,8 +45,9 @@ Package `NativeHTMLKit-0.1.0-linux-x64+win-x64.zip` SHA-256 `8e1fe37f589e4f89f3b
 | PS 7.7.0, winDEV interactive RDP desktop | 13/13 PASS | 154/154 | PASS 29/29, clean teardown | PASS headless + GUI |
 | Windows PowerShell 5.1.20348, same desktop | 13/13 PASS | 154/154 | PASS 29/29, clean teardown | PASS headless + GUI |
 
-Not run: IME, `idle` and `bitmap-kill` modes. Core protocol v1 is `1.0-rc`. Release status: 0.1.0 prerelease, published only
-via GitHub Releases (not the PowerShell Gallery).
+Not run: IME, `idle` and `bitmap-kill` modes. Core 1.0.2 then labelled protocol v1 a release candidate; it is the
+public-stable wire contract (1.0) since Core 1.0.3. Release status: 0.1.0 prerelease, published only via GitHub Releases
+(not the PowerShell Gallery).
 
 ## Superseded run — final2, after the independent final review (2026-11-15)
 
@@ -59,6 +66,6 @@ Evidence: Project `verification/2026-11-15-sdk/powershell/final2/` (`results.jso
 | Windows PowerShell 5.1.20348, same desktop | 13/13 PASS | 154/154 | PASS 29/29, clean teardown | PASS headless + GUI |
 
 Mutation testing on this tree: 19/20 mutants killed (the survivor is an equivalent mutant). Not run: IME, `idle` and `bitmap-kill` modes.
-**Release status: locally qualified development candidate (dirty Core hosts), not published.** Core protocol v1 remains a release candidate.
+**Release status: locally qualified development candidate (dirty Core hosts), not published.**
 
 Local tests and builds only. No GitHub Actions, no Gallery or GitHub release without express approval.

@@ -731,11 +731,13 @@ namespace NativeHTMLKit {
         private MemoryMappedFile map;
         private MemoryMappedViewAccessor view;
         private readonly long capacity;
+        private readonly string path;
 
         public MappedBitmap(string path, long capacity, bool deleteOnClose) {
             if (string.IsNullOrEmpty(path) || !Path.IsPathRooted(path)) throw new ArgumentException("Bitmap path must be absolute");
             if (capacity < 1) throw new ArgumentOutOfRangeException("capacity");
             this.capacity = capacity;
+            this.path = path;
             // Delete sharing lets the host unlink the transport after the first
             // present; Windows delete-on-close removes it if both sides die.
             FileOptions options = deleteOnClose ? FileOptions.DeleteOnClose : FileOptions.None;
@@ -757,6 +759,8 @@ namespace NativeHTMLKit {
             }
         }
         public long Capacity { get { return capacity; } }
+        /// <summary>The transport file path the host returned (its directory is host-chosen).</summary>
+        public string TransportPath { get { return path; } }
         public bool IsClosed { get { return view == null; } }
 
         public void Write(long offset, byte[] data) {
