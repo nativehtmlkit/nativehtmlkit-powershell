@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Drive tests/native/Qualify.ps1 in a real KDE Plasma Wayland session (lab VM linuxDEV).
+"""Drive tests/native/Qualify.ps1 in a real KDE Plasma Wayland session.
 
 Test tooling only; Python is not part of the PowerShell runtime. Real pointer and keyboard
 events go through uinput (ydotool) and the compositor; window geometry and state come from

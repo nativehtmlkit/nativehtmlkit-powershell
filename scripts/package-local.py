@@ -8,7 +8,7 @@ release manifest's host_sha256 must agree; without them packaging fails unless
 --allow-missing-core-licenses is given (development only, marked in the manifest).
 
   python3 scripts/package-local.py --out dist/linux \
-      --host linux-x64=/path/to/nativehtmlkit-core-v1.0.2-linux-x64/nativehtmlkit-host \
+      --host linux-x64=/path/to/nativehtmlkit-core-v1.0.3-linux-x64/nativehtmlkit-host \
       --sha256 linux-x64=742d10e3...
 
 Repeat --host/--sha256 for win-x64 to build one multi-runtime package. Output (a new or empty
